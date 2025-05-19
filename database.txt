@@ -1,0 +1,440 @@
+CREATE DATABASE IF NOT EXISTS assetwise_academia;
+
+USE assetwise_academia;
+
+-- Drop tables in reverse order of dependency if they exist, to allow clean recreation
+DROP TABLE IF EXISTS SystemLogs;
+DROP TABLE IF EXISTS RecentActivities;
+DROP TABLE IF EXISTS Notifications;
+DROP TABLE IF EXISTS PurchaseOrderItems;
+DROP TABLE IF EXISTS PurchaseOrders;
+DROP TABLE IF EXISTS Transactions; -- Was ItemIssuanceLog, renamed for clarity and broader use
+DROP TABLE IF EXISTS Items;
+DROP TABLE IF EXISTS Categories;
+DROP TABLE IF EXISTS Users;
+
+
+CREATE TABLE Users (
+    UserID INT PRIMARY KEY AUTO_INCREMENT,
+    Username VARCHAR(50) UNIQUE NOT NULL,
+    Password VARCHAR(255) NOT NULL, -- Store hashed passwords
+    FullName VARCHAR(100) NOT NULL,
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    Role ENUM('Admin', 'Custodian', 'KioskUser') NOT NULL,
+    IsActive BOOLEAN DEFAULT TRUE,
+    ProfilePicture LONGBLOB NULL, -- Added for user profile picture
+    CreatedBy INT NULL,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (CreatedBy) REFERENCES Users(UserID) ON DELETE SET NULL
+);
+
+CREATE TABLE Categories (
+    CategoryID INT PRIMARY KEY AUTO_INCREMENT,
+    CategoryName VARCHAR(100) UNIQUE NOT NULL,
+    Description TEXT
+);
+
+CREATE TABLE Items (
+    ItemID INT PRIMARY KEY AUTO_INCREMENT,
+    ItemName VARCHAR(150) NOT NULL,
+    Description TEXT,
+    CategoryID INT,
+    Quantity INT NOT NULL DEFAULT 0,
+    ReorderLevel INT NOT NULL DEFAULT 5,
+    Unit VARCHAR(30) NOT NULL,
+    UnitPrice DECIMAL(10, 2) NULL, -- Added UnitPrice column
+    ItemImage LONGBLOB,
+    ItemImageType VARCHAR(50),
+    IsMachinery BOOLEAN DEFAULT FALSE,
+    MachineStatus ENUM('Active', 'Inactive', 'Under Maintenance', 'Not Applicable') DEFAULT 'Not Applicable',
+    ItemCondition ENUM('Good', 'Fair', 'Damaged', 'Needs Repair', 'Not Applicable') DEFAULT 'Not Applicable',
+    Status VARCHAR(50) DEFAULT 'In Stock',
+    Location VARCHAR(100) NULL,
+    SerialNumber VARCHAR(100) NULL,
+    PurchaseDate DATE NULL,
+    WarrantyExpiryDate DATE NULL,
+    IsArchived BOOLEAN DEFAULT FALSE,
+    AddedBy INT,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (CategoryID) REFERENCES Categories(CategoryID) ON DELETE SET NULL,
+    FOREIGN KEY (AddedBy) REFERENCES Users(UserID) ON DELETE SET NULL
+);
+
+CREATE TABLE Transactions (
+    TransactionID INT PRIMARY KEY AUTO_INCREMENT,
+    ItemID INT NOT NULL,
+    TransactionType ENUM('Received', 'Issued', 'Returned', 'Adjusted', 'Damaged Out', 'Lost') NOT NULL,
+    Quantity INT NOT NULL,
+    TransactionDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UserID INT NOT NULL,
+    IssuedToPersonName VARCHAR(100) NULL,
+    IssuedToDepartment VARCHAR(100) NULL,
+    IssuedToGradeLevel VARCHAR(50) NULL,
+    IssuedToSection VARCHAR(50) NULL,
+    SchoolYear VARCHAR(20) NULL,
+    Purpose TEXT NULL,
+    ExpectedReturnDate DATE NULL,
+    ActualReturnDate DATE NULL,
+    Notes TEXT,
+    FOREIGN KEY (ItemID) REFERENCES Items(ItemID) ON DELETE CASCADE,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE RESTRICT
+);
+
+CREATE TABLE PurchaseOrders (
+    POID INT PRIMARY KEY AUTO_INCREMENT,
+    PONumber VARCHAR(30) UNIQUE NOT NULL,
+    PODate DATE DEFAULT (CURRENT_DATE),
+    SupplierName VARCHAR(150) NULL,
+    Status ENUM('Draft', 'Pending Approval', 'Approved', 'Ordered', 'Partially Received', 'Received', 'Cancelled', 'Pending Reorder') NOT NULL DEFAULT 'Draft', -- Added 'Pending Reorder' for items automatically flagged
+    Notes TEXT,
+    TotalAmount DECIMAL(10, 2) NULL,
+    CreatedBy INT NOT NULL,
+    ApprovedBy INT NULL,
+    ApprovalDate TIMESTAMP NULL,
+    FOREIGN KEY (CreatedBy) REFERENCES Users(UserID) ON DELETE RESTRICT,
+    FOREIGN KEY (ApprovedBy) REFERENCES Users(UserID) ON DELETE SET NULL
+);
+
+CREATE TABLE PurchaseOrderItems (
+    POItemID INT PRIMARY KEY AUTO_INCREMENT,
+    POID INT NOT NULL,
+    ItemID INT NOT NULL,
+    Description VARCHAR(255) NULL,
+    QuantityOrdered INT NOT NULL,
+    QuantityReceived INT DEFAULT 0,
+    UnitPrice DECIMAL(10, 2) NULL,
+    FOREIGN KEY (POID) REFERENCES PurchaseOrders(POID) ON DELETE CASCADE,
+    FOREIGN KEY (ItemID) REFERENCES Items(ItemID) ON DELETE RESTRICT
+);
+
+CREATE TABLE Notifications (
+    NotificationID INT PRIMARY KEY AUTO_INCREMENT,
+    UserID INT NULL,
+    ItemID INT NULL,
+    POID INT NULL,
+    NotificationType ENUM('Low Stock', 'Out of Stock', 'PO Approval Required', 'PO Approved', 'PO Ordered', 'Item Received', 'Warranty Expiry Soon', 'ItemNeedsReorder') NOT NULL, -- Added 'ItemNeedsReorder'
+    Message TEXT NOT NULL,
+    IsRead BOOLEAN DEFAULT FALSE,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE,
+    FOREIGN KEY (ItemID) REFERENCES Items(ItemID) ON DELETE CASCADE,
+    FOREIGN KEY (POID) REFERENCES PurchaseOrders(POID) ON DELETE CASCADE
+);
+
+CREATE TABLE RecentActivities (
+    ActivityID INT PRIMARY KEY AUTO_INCREMENT,
+    ActivityDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ActivityType VARCHAR(100) NOT NULL,
+    UserID INT NULL,
+    UserName VARCHAR(100),
+    Details TEXT,
+    RelatedItemID INT NULL,
+    RelatedTransactionID INT NULL,
+    RelatedPOID INT NULL,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE SET NULL,
+    FOREIGN KEY (RelatedItemID) REFERENCES Items(ItemID) ON DELETE SET NULL,
+    FOREIGN KEY (RelatedTransactionID) REFERENCES Transactions(TransactionID) ON DELETE SET NULL,
+    FOREIGN KEY (RelatedPOID) REFERENCES PurchaseOrders(POID) ON DELETE SET NULL
+);
+
+CREATE TABLE SystemLogs (
+    LogID INT PRIMARY KEY AUTO_INCREMENT,
+    LogTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    LogLevel ENUM('INFO', 'WARNING', 'ERROR', 'CRITICAL') DEFAULT 'INFO',
+    Source VARCHAR(100),
+    UserID INT NULL,
+    Action VARCHAR(255) NOT NULL,
+    Details TEXT,
+    IPAddress VARCHAR(45) NULL,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE SET NULL
+);
+
+-- Initial Data for Categories
+INSERT INTO Categories (CategoryName, Description) VALUES
+('Office Supplies', 'Pens, paper, notebooks, staplers, etc.'),
+('Electronics', 'Computers, monitors, peripherals, cables, etc.'),
+('Furniture', 'Desks, chairs, shelves, cabinets, etc.'),
+('Cleaning Supplies', 'Detergents, brooms, mops, trash bags, etc.'),
+('Educational Materials', 'Textbooks, lab equipment (non-machinery), charts, etc.'),
+('Machinery', 'Printers, projectors, specialized lab machines, power tools, etc.'),
+('Office Equipment', 'Photocopiers, laminators, shredders, AV equipment not classified as personal electronics.'),
+('Safety Gear', 'Gloves, goggles, first aid kits, etc.'),
+('Miscellaneous', 'Other items not fitting into specific categories.');
+
+
+-- Triggers
+DELIMITER //
+
+CREATE TRIGGER SetStockStatus_BI BEFORE INSERT ON Items
+FOR EACH ROW
+BEGIN
+    IF NEW.IsArchived = TRUE THEN
+        SET NEW.Status = 'Archived';
+    ELSEIF NEW.Quantity <= 0 THEN
+        SET NEW.Status = 'Out of Stock';
+    ELSEIF NEW.Quantity <= NEW.ReorderLevel THEN
+        SET NEW.Status = 'Low Stock';
+    ELSE
+        SET NEW.Status = 'In Stock';
+    END IF;
+END//
+
+CREATE TRIGGER SetStockStatus_BU BEFORE UPDATE ON Items
+FOR EACH ROW
+BEGIN
+    IF OLD.Quantity <> NEW.Quantity OR OLD.ReorderLevel <> NEW.ReorderLevel OR OLD.IsArchived <> NEW.IsArchived THEN
+        IF NEW.IsArchived = TRUE THEN
+            SET NEW.Status = 'Archived';
+        ELSEIF NEW.Quantity <= 0 THEN
+            SET NEW.Status = 'Out of Stock';
+        ELSEIF NEW.Quantity > 0 AND NEW.Quantity <= NEW.ReorderLevel THEN
+            SET NEW.Status = 'Low Stock';
+        ELSE
+            SET NEW.Status = 'In Stock';
+        END IF;
+    END IF;
+
+    IF NEW.IsMachinery = TRUE AND OLD.MachineStatus <> NEW.MachineStatus THEN
+        INSERT INTO RecentActivities(ActivityType, UserID, UserName, Details, RelatedItemID)
+        SELECT 'Machine Status Change', NEW.AddedBy, U.Username, CONCAT('Status of machine "', NEW.ItemName, '" (ID: ', NEW.ItemID, ') changed from ', OLD.MachineStatus, ' to ', NEW.MachineStatus, '.'), NEW.ItemID
+        FROM Users U WHERE U.UserID = NEW.AddedBy;
+    END IF;
+
+    IF OLD.ItemCondition <> NEW.ItemCondition THEN
+        INSERT INTO RecentActivities(ActivityType, UserID, UserName, Details, RelatedItemID)
+        SELECT 'Item Condition Change', NEW.AddedBy, U.Username, CONCAT('Condition of item "', NEW.ItemName, '" (ID: ', NEW.ItemID, ') changed from ', OLD.ItemCondition, ' to ', NEW.ItemCondition, '.'), NEW.ItemID
+        FROM Users U WHERE U.UserID = NEW.AddedBy;
+    END IF;
+
+    -- Notification for items reaching reorder level (non-machinery only)
+    IF NEW.IsArchived = FALSE AND NEW.IsMachinery = FALSE AND NEW.Quantity <= NEW.ReorderLevel AND (OLD.Quantity > OLD.ReorderLevel OR OLD.ReorderLevel <> NEW.ReorderLevel) THEN
+        INSERT INTO Notifications(ItemID, NotificationType, Message)
+        VALUES (NEW.ItemID, 'ItemNeedsReorder', CONCAT('Item "', NEW.ItemName, '" (ID: ', NEW.ItemID, ') has reached its reorder level (Qty: ', NEW.Quantity, ', Reorder Lvl: ', NEW.ReorderLevel, '). Consider creating a purchase order.'));
+    END IF;
+END//
+
+
+CREATE TRIGGER UpdateStockAfterTransaction_AI AFTER INSERT ON Transactions
+FOR EACH ROW
+BEGIN
+    DECLARE current_item_name VARCHAR(150);
+    DECLARE current_item_quantity INT;
+    DECLARE v_is_archived BOOLEAN;
+
+    SELECT ItemName, Quantity, IsArchived INTO current_item_name, current_item_quantity, v_is_archived FROM Items WHERE ItemID = NEW.ItemID;
+
+    IF v_is_archived = FALSE THEN
+        IF NEW.TransactionType = 'Received' THEN
+            UPDATE Items SET Quantity = Quantity + NEW.Quantity WHERE ItemID = NEW.ItemID;
+        ELSEIF NEW.TransactionType = 'Issued' THEN
+            IF current_item_quantity < NEW.Quantity THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot issue item: Insufficient stock for item.';
+            ELSE
+                UPDATE Items SET Quantity = Quantity - NEW.Quantity WHERE ItemID = NEW.ItemID;
+            END IF;
+        ELSEIF NEW.TransactionType = 'Returned' THEN
+            UPDATE Items SET Quantity = Quantity + NEW.Quantity WHERE ItemID = NEW.ItemID;
+        ELSEIF NEW.TransactionType = 'Adjusted' THEN
+            UPDATE Items SET Quantity = Quantity + NEW.Quantity WHERE ItemID = NEW.ItemID;
+             IF (SELECT Quantity FROM Items WHERE ItemID = NEW.ItemID) < 0 THEN
+                UPDATE Items SET Quantity = 0 WHERE ItemID = NEW.ItemID;
+            END IF;
+        ELSEIF NEW.TransactionType IN ('Damaged Out', 'Lost') THEN
+            IF current_item_quantity < NEW.Quantity THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot mark item as damaged/lost: Insufficient stock.';
+            ELSE
+                UPDATE Items SET Quantity = Quantity - NEW.Quantity WHERE ItemID = NEW.ItemID;
+            END IF;
+        END IF;
+    END IF;
+
+    INSERT INTO RecentActivities(ActivityType, UserID, UserName, Details, RelatedItemID, RelatedTransactionID)
+    SELECT CONCAT('Transaction: ', NEW.TransactionType), NEW.UserID, U.Username,
+           CONCAT(NEW.TransactionType, ' ', NEW.Quantity, ' unit(s) of "', current_item_name, '" (ID: ', NEW.ItemID, '). ',
+                  IFNULL(CONCAT('Issued to: ', NEW.IssuedToPersonName, ', Dept: ', NEW.IssuedToDepartment, '. '), '') ,
+                  IFNULL(CONCAT('Notes: ', NEW.Notes), '')),
+           NEW.ItemID, NEW.TransactionID
+    FROM Users U WHERE U.UserID = NEW.UserID;
+END//
+
+CREATE TRIGGER LogPurchaseOrderStatusChange_AU AFTER UPDATE ON PurchaseOrders
+FOR EACH ROW
+BEGIN
+    IF OLD.Status <> NEW.Status THEN
+        INSERT INTO RecentActivities (ActivityType, UserID, UserName, Details, RelatedPOID)
+        SELECT 'PO Status Change', NEW.ApprovedBy, U.Username,
+               CONCAT('Status of PO #', NEW.PONumber, ' changed from ', OLD.Status, ' to ', NEW.Status),
+               NEW.POID
+        FROM Users U WHERE U.UserID = IFNULL(NEW.ApprovedBy, NEW.CreatedBy);
+
+        IF NEW.Status = 'Approved' THEN
+            INSERT INTO Notifications(UserID, POID, NotificationType, Message)
+            VALUES (NEW.CreatedBy, NEW.POID, 'PO Approved', CONCAT('Purchase Order #', NEW.PONumber, ' has been approved.'));
+        ELSEIF NEW.Status = 'Ordered' THEN
+             INSERT INTO Notifications(UserID, POID, NotificationType, Message)
+            VALUES (NEW.CreatedBy, NEW.POID, 'PO Ordered', CONCAT('Purchase Order #', NEW.PONumber, ' has been marked as ordered.'));
+        END IF;
+    END IF;
+END//
+
+CREATE TRIGGER UpdatePOItemOnTransaction_AI AFTER INSERT ON Transactions
+FOR EACH ROW
+BEGIN
+    DECLARE v_poid INT;
+    DECLARE v_total_ordered INT;
+    DECLARE v_total_received INT;
+    DECLARE v_item_is_archived BOOLEAN;
+
+    SELECT IsArchived INTO v_item_is_archived FROM Items WHERE ItemID = NEW.ItemID;
+
+    IF NEW.TransactionType = 'Received' AND NEW.Notes LIKE 'PO#%' AND v_item_is_archived = FALSE THEN
+        SET v_poid = (SELECT POID FROM PurchaseOrders WHERE PONumber = SUBSTRING_INDEX(SUBSTRING_INDEX(NEW.Notes, 'PO#', -1), ' ', 1) LIMIT 1);
+
+        IF v_poid IS NOT NULL THEN
+            UPDATE PurchaseOrderItems
+            SET QuantityReceived = QuantityReceived + NEW.Quantity
+            WHERE POID = v_poid AND ItemID = NEW.ItemID
+            ORDER BY POItemID
+            LIMIT 1;
+
+            SELECT SUM(QuantityOrdered), SUM(QuantityReceived)
+            INTO v_total_ordered, v_total_received
+            FROM PurchaseOrderItems
+            WHERE POID = v_poid;
+
+            IF v_total_received >= v_total_ordered THEN
+                UPDATE PurchaseOrders SET Status = 'Received' WHERE POID = v_poid AND Status != 'Received';
+            ELSEIF v_total_received > 0 THEN
+                UPDATE PurchaseOrders SET Status = 'Partially Received' WHERE POID = v_poid AND Status NOT IN ('Received', 'Partially Received');
+            END IF;
+        END IF;
+    END IF;
+END//
+
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE AutoGenerateDraftPOForLowStock(IN p_requesting_user_id INT)
+BEGIN
+    DECLARE v_po_id INT;
+    DECLARE v_po_number VARCHAR(30);
+    DECLARE items_to_order_count INT DEFAULT 0;
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_item_id INT;
+    DECLARE v_item_name VARCHAR(150);
+    DECLARE v_quantity_to_order INT;
+    DECLARE v_reorder_level INT;
+    DECLARE v_current_quantity INT;
+
+    DECLARE cur_low_stock_items CURSOR FOR
+        SELECT I.ItemID, I.ItemName, I.ReorderLevel, I.Quantity, (I.ReorderLevel - I.Quantity + 5) AS OrderQty
+        FROM Items I
+        WHERE I.Quantity <= I.ReorderLevel
+          AND I.Status != 'Out of Stock'
+          AND I.IsArchived = FALSE
+          AND I.IsMachinery = FALSE -- << MODIFIED: Exclude machinery
+          AND NOT EXISTS (
+              SELECT 1 FROM PurchaseOrderItems POI
+              JOIN PurchaseOrders PO ON POI.POID = PO.POID
+              WHERE POI.ItemID = I.ItemID AND PO.Status IN ('Draft', 'Pending Approval', 'Approved', 'Ordered', 'Pending Reorder') -- Added 'Pending Reorder'
+          );
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    SELECT COUNT(*) INTO items_to_order_count
+    FROM Items I
+    WHERE I.Quantity <= I.ReorderLevel
+      AND I.Status != 'Out of Stock'
+      AND I.IsArchived = FALSE
+      AND I.IsMachinery = FALSE -- << MODIFIED: Exclude machinery
+      AND NOT EXISTS (
+          SELECT 1 FROM PurchaseOrderItems POI
+          JOIN PurchaseOrders PO ON POI.POID = PO.POID
+          WHERE POI.ItemID = I.ItemID AND PO.Status IN ('Draft', 'Pending Approval', 'Approved', 'Ordered', 'Pending Reorder')
+      );
+
+    IF items_to_order_count > 0 THEN
+        SET v_po_number = CONCAT('PO-AUTO-', DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'), '-', LPAD(p_requesting_user_id, 4, '0'));
+
+        INSERT INTO PurchaseOrders(PONumber, Status, CreatedBy, Notes)
+        VALUES(v_po_number, 'Draft', p_requesting_user_id, 'Auto-generated draft PO for low stock non-machinery items. Please review and approve.');
+        SET v_po_id = LAST_INSERT_ID();
+
+        OPEN cur_low_stock_items;
+        read_loop: LOOP
+            FETCH cur_low_stock_items INTO v_item_id, v_item_name, v_reorder_level, v_current_quantity, v_quantity_to_order;
+            IF done THEN
+                LEAVE read_loop;
+            END IF;
+
+            IF v_quantity_to_order <= 0 THEN
+                SET v_quantity_to_order = v_reorder_level;
+            END IF;
+
+            INSERT INTO PurchaseOrderItems(POID, ItemID, Description, QuantityOrdered, UnitPrice)
+            VALUES(v_po_id, v_item_id, v_item_name, v_quantity_to_order, NULL);
+
+        END LOOP;
+        CLOSE cur_low_stock_items;
+
+        INSERT INTO Notifications(UserID, POID, NotificationType, Message)
+        SELECT UserID, v_po_id, 'PO Approval Required', CONCAT('Auto-generated Draft Purchase Order #', v_po_number, ' requires your review and approval.')
+        FROM Users WHERE Role = 'Admin' AND IsActive = TRUE;
+
+        INSERT INTO SystemLogs(Source, UserID, Action, Details)
+        VALUES('StoredProcedure_AutoGenerateDraftPO', p_requesting_user_id, 'Auto PO Draft Creation', CONCAT('Created Draft PO #', v_po_number, ' with ', items_to_order_count, ' non-machinery item(s).'));
+
+    ELSE
+        INSERT INTO SystemLogs(Source, UserID, Action, Details)
+        VALUES('StoredProcedure_AutoGenerateDraftPO', p_requesting_user_id, 'Auto PO Check', 'No non-machinery items found requiring reorder for auto PO generation.');
+    END IF;
+END//
+DELIMITER ;
+
+
+-- ===================================================================================
+-- INSERT ADMIN USER (Execute this after creating the tables)
+-- ===================================================================================
+INSERT INTO Users (Username, Password, FullName, Email, Role, IsActive, CreatedBy)
+VALUES (
+    'admin',
+    'FeKw08M4keuw8e9gnsQZQgwg4yDOlMZfvIwzEkSOsiU=',
+    'System Administrator',
+    'admin@example.com',
+    'Admin',
+    TRUE,
+    NULL
+);
+
+INSERT INTO Users (Username, Password, FullName, Email, Role, IsActive, CreatedBy)
+VALUES (
+    'custodian',
+    'FeKw08M4keuw8e9gnsQZQgwg4yDOlMZfvIwzEkSOsiU=',
+    'Warehouse Custodian',
+    'custodian@example.com',
+    'Custodian',
+    TRUE,
+   NULL
+);
+
+INSERT INTO Users (Username, Password, FullName, Email, Role, IsActive, CreatedBy)
+VALUES (
+    'kiosk',
+    'FeKw08M4keuw8e9gnsQZQgwg4yDOlMZfvIwzEkSOsiU=',
+    'Kiosk System User',
+    'kiosk@example.com',
+    'KioskUser',
+    TRUE,
+    NULL
+);
+
+-- Example Items
+INSERT INTO Items (ItemName, Description, CategoryID, Quantity, ReorderLevel, Unit, UnitPrice, IsMachinery, MachineStatus, ItemCondition, AddedBy, SerialNumber, PurchaseDate, WarrantyExpiryDate, IsArchived) VALUES
+('Laser Printer X2000', 'Heavy-duty network laser printer', (SELECT CategoryID FROM Categories WHERE CategoryName = 'Machinery'), 2, 1, 'pcs', 500.00, TRUE, 'Active', 'Good', (SELECT UserID FROM Users WHERE Username = 'admin'), 'SN-LPX2000-001', '2023-01-15', '2025-01-14', FALSE),
+('Office Chair Ergonomic', 'Ergonomic office chair with lumbar support', (SELECT CategoryID FROM Categories WHERE CategoryName = 'Furniture'), 10, 5, 'pcs', 150.50, FALSE, 'Not Applicable', 'Good', (SELECT UserID FROM Users WHERE Username = 'admin'), NULL, '2022-11-20', NULL, FALSE),
+('Projector HD550', 'Full HD Classroom Projector', (SELECT CategoryID FROM Categories WHERE CategoryName = 'Office Equipment'), 3, 1, 'pcs', 350.75, TRUE, 'Active', 'Good', (SELECT UserID FROM Users WHERE Username = 'admin'), 'SN-PHD550-001', '2023-05-10', '2025-05-09', FALSE),
+('A4 Ream Paper', 'Standard A4 printing paper, 80gsm', (SELECT CategoryID FROM Categories WHERE CategoryName = 'Office Supplies'), 5, 20, 'reams', 5.20, FALSE, 'Not Applicable', 'Good', (SELECT UserID FROM Users WHERE Username = 'admin'), NULL, '2024-03-01', NULL, FALSE), -- Quantity set to 5 to test reorder
+('Laptop Dell XPS 13', 'Student/Staff Laptop', (SELECT CategoryID FROM Categories WHERE CategoryName = 'Electronics'), 5, 2, 'pcs', 1200.00, TRUE, 'Active', 'Good', (SELECT UserID FROM Users WHERE Username = 'admin'), 'SN-DXPS13-001', '2023-08-20', '2026-08-19', FALSE);
+
+-- CALL AutoGenerateDraftPOForLowStock(1);
