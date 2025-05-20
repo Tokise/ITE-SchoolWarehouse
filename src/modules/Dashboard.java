@@ -61,6 +61,10 @@ public class Dashboard extends javax.swing.JPanel {
     private JButton searchActivityButton;
     private String currentActivitySearchText = "";
 
+    // Assuming these are defined elsewhere or passed in,
+    // but for the purpose of adding action listeners, we'll assume they exist
+    // and add placeholder comments for navigation logic.
+    // private MainApplicationFrame parentFrame; // Example of a parent frame reference
 
     private static final String DB_URL = "jdbc:mysql://127.0.0.1:3307/assetwise_academia";
     private static final String DB_USER = "root";
@@ -74,6 +78,12 @@ public class Dashboard extends javax.swing.JPanel {
         fetchInventoryMovementData();
         fetchRecentActivities(); // Initial load of recent activities
     }
+
+    // If you have a reference to the main frame, you might set it like this:
+    // public void setParentFrame(MainApplicationFrame frame) {
+    //     this.parentFrame = frame;
+    // }
+
 
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
@@ -343,7 +353,9 @@ public class Dashboard extends javax.swing.JPanel {
                 logAndSetNA("low stock", e);
             }
 
-            try (PreparedStatement pendingOrdersStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM PurchaseOrders WHERE Status = 'Pending'");
+            // Fetch count of pending Purchase Orders
+            // Assuming 'Pending' status covers all non-completed/non-cancelled POs you want to highlight
+            try (PreparedStatement pendingOrdersStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM PurchaseOrders WHERE Status IN ('Draft', 'Pending Approval', 'Approved', 'Ordered', 'Partially Received', 'Pending Reorder')");
                  ResultSet pendingOrdersRs = pendingOrdersStmt.executeQuery()) {
                 if (pendingOrdersRs.next()) {
                     final String pendingOrders = String.valueOf(pendingOrdersRs.getInt(1));
@@ -426,12 +438,44 @@ public class Dashboard extends javax.swing.JPanel {
         addItemButton.setFocusPainted(false);
         panel.add(addItemButton);
 
-        javax.swing.JButton purchaseOrderButton = new javax.swing.JButton("Create Purchase Order");
+        // Add ActionListener to the Add New Item button
+        addItemButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.out.println("Add New Item button clicked.");
+                // TODO: Add navigation logic here to switch to the Add Item panel/module
+                // Example (requires a reference to the main frame and a method to switch panels):
+                // if (parentFrame != null) {
+                //     parentFrame.showPanel("AddItem"); // Assuming "AddItem" is the identifier for the Add Item panel
+                // } else {
+                //     System.err.println("Parent frame not set. Cannot navigate to Add Item panel.");
+                // }
+            }
+        });
+
+
+        javax.swing.JButton purchaseOrderButton = new javax.swing.JButton("Purchase Orders"); // Changed text slightly
         purchaseOrderButton.setFont(new Font("Verdana", Font.BOLD, 14));
         purchaseOrderButton.setBackground(new Color(46, 204, 113));
         purchaseOrderButton.setForeground(Color.WHITE);
         purchaseOrderButton.setFocusPainted(false);
         panel.add(purchaseOrderButton);
+
+        // Add ActionListener to the Create Purchase Order button
+        purchaseOrderButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.out.println("Purchase Orders button clicked.");
+                // TODO: Add navigation logic here to switch to the Purchase Order panel/module
+                 // Example (requires a reference to the main frame and a method to switch panels):
+                // if (parentFrame != null) {
+                //     parentFrame.showPanel("PurchaseOrder"); // Assuming "PurchaseOrder" is the identifier for the Purchase Order panel
+                // } else {
+                //     System.err.println("Parent frame not set. Cannot navigate to Purchase Order panel.");
+                // }
+            }
+        });
+
 
         javax.swing.JButton reportButton = new javax.swing.JButton("Generate Report");
         reportButton.setFont(new Font("Verdana", Font.BOLD, 14));
@@ -440,14 +484,30 @@ public class Dashboard extends javax.swing.JPanel {
         reportButton.setFocusPainted(false);
         panel.add(reportButton);
 
+        // Add ActionListener to the Generate Report button
+        reportButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.out.println("Generate Report button clicked.");
+                // TODO: Add navigation logic here to switch to the Reporting panel/module or open a report dialog
+                 // Example (requires a reference to the main frame and a method to switch panels or open dialog):
+                // if (parentFrame != null) {
+                //     parentFrame.showPanel("Reports"); // Assuming "Reports" is the identifier for the Reports panel
+                // } else {
+                //     System.err.println("Parent frame not set. Cannot navigate to Reports panel.");
+                // }
+            }
+        });
+
+
         return panel;
     }
 
     private void fetchRecentActivities() {
         System.out.println("Fetching recent activities for page " + currentPage + " with search: '" + currentActivitySearchText + "'");
 
-        // Corrected filter to explicitly include 'Transaction: Issued' (space only after colon)
-        StringBuilder activityFilterClause = new StringBuilder("WHERE (ra.ActivityType = 'Transaction: Issued' OR ra.ActivityType LIKE 'Item Added%' OR ra.ActivityType LIKE 'Item Updated%' OR ra.ActivityType LIKE 'Item Deleted%' OR ra.ActivityType = 'New User' OR ra.ActivityType = 'User Login' OR ra.ActivityType = 'Item Issued')");
+        // Updated filter to explicitly include Purchase Order related activities
+        StringBuilder activityFilterClause = new StringBuilder("WHERE (ra.ActivityType = 'Transaction: Issued' OR ra.ActivityType LIKE 'Item Added%' OR ra.ActivityType LIKE 'Item Updated%' OR ra.ActivityType LIKE 'Item Deleted%' OR ra.ActivityType = 'New User' OR ra.ActivityType = 'User Login' OR ra.ActivityType = 'Item Issued' OR ra.ActivityType = 'Purchase Order Created' OR ra.ActivityType = 'Purchase Order Approved' OR ra.ActivityType = 'Purchase Order Received' OR ra.ActivityType = 'Purchase Order Cancelled' OR ra.ActivityType = 'Purchase Order Updated')");
 
 
         if (currentActivitySearchText != null && !currentActivitySearchText.isEmpty()) {
@@ -556,18 +616,18 @@ public class Dashboard extends javax.swing.JPanel {
                  if (!dataFoundOnPage && totalActivities > 0) {
                       // This can happen if the last page is deleted or filtered out
                       // Go back to the previous page if possible
-                     if (currentPage > 1) {
-                         currentPage--;
+                      if (currentPage > 1) {
+                          currentPage--;
                           System.out.println("No data on current page, moving to previous page: " + currentPage); // Debug print page change
-                         fetchRecentActivities(); // Re-fetch data for the previous page
-                     } else {
-                         // If on the first page and no data, clear table and show no activities
-                          System.out.println("No data on first page, showing 'No matching activities found'."); // Debug print no data message
-                         SwingUtilities.invokeLater(() -> {
-                             recentActivitiesModel.setRowCount(0);
-                             recentActivitiesModel.addRow(new Object[]{"", "No matching activities found", "", ""});
-                         });
-                     }
+                          fetchRecentActivities(); // Re-fetch data for the previous page
+                      } else {
+                          // If on the first page and no data, clear table and show no activities
+                           System.out.println("No data on first page, showing 'No matching activities found'."); // Debug print no data message
+                          SwingUtilities.invokeLater(() -> {
+                              recentActivitiesModel.setRowCount(0);
+                              recentActivitiesModel.addRow(new Object[]{"", "No matching activities found", "", ""});
+                          });
+                      }
                  } else if (!dataFoundOnPage && totalActivities == 0) {
                       System.out.println("No activities found in total (with filter)."); // Debug print no total activities
                      SwingUtilities.invokeLater(() -> {
@@ -672,7 +732,8 @@ public class Dashboard extends javax.swing.JPanel {
             });
         }
     }
-    
+
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

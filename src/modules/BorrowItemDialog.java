@@ -19,6 +19,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Date; // Import java.util.Date
+import java.util.List; // Import List
+import java.util.ArrayList; // Import ArrayList
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -31,13 +33,22 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import com.toedter.calendar.JDateChooser;
+import javax.swing.JTable; // Import JTable
+import javax.swing.ListSelectionModel;
+import javax.swing.table.DefaultTableModel; // Import DefaultTableModel
+import javax.swing.table.DefaultTableCellRenderer; // Import for centering text
 
 
 public class BorrowItemDialog extends JDialog {
 
-    private JLabel itemLabel;
-    private JLabel availableQuantityLabel;
-    private JTextField borrowQuantityField;
+    // Remove single item labels
+    // private JLabel itemLabel;
+    // private JLabel availableQuantityLabel;
+
+    // Use a table to display items being borrowed
+    private JTable itemsToBorrowTable;
+    private DefaultTableModel itemsToBorrowTableModel;
+
     private JTextField borrowerNameField;
     private JTextField borrowerDepartmentField;
     private JTextField borrowerGradeLevelField;
@@ -52,10 +63,12 @@ public class BorrowItemDialog extends JDialog {
 
     private Connection conn;
     private User kioskUser; // The logged-in Kiosk user performing the borrow
-    private int selectedItemId;
-    private String selectedItemName;
-    private int maxAvailableQuantity;
-    private boolean isMachineryItem; // Field to store isMachinery status
+
+    // Use a list to store details of items being borrowed
+    private List<BorrowItemDetails> itemsToBorrow;
+
+    // Flag to check if any of the selected items is machinery
+    private boolean hasMachineryItem = false;
 
 
     // Callback interface to notify the parent (KioskDashboard)
@@ -65,28 +78,44 @@ public class BorrowItemDialog extends JDialog {
 
     private BorrowCompleteListener listener;
 
-    // Updated constructor to accept isMachinery
-    public BorrowItemDialog(java.awt.Frame parent, boolean modal, Connection conn, User kioskUser, int itemId, String itemName, int maxQuantity, boolean isMachinery, BorrowCompleteListener listener) {
+    /**
+     * Creates new form BorrowItemDialog for multiple items.
+     * @param parent The parent Frame.
+     * @param modal Whether the dialog is modal.
+     * @param conn The database connection.
+     * @param kioskUser The logged-in Kiosk user.
+     * @param itemsToBorrow The list of items selected for borrowing.
+     * @param listener The listener to notify upon completion.
+     */
+    public BorrowItemDialog(java.awt.Frame parent, boolean modal, Connection conn, User kioskUser, List<BorrowItemDetails> itemsToBorrow, BorrowCompleteListener listener) {
         super(parent, modal);
         this.conn = conn;
         this.kioskUser = kioskUser;
-        this.selectedItemId = itemId;
-        this.selectedItemName = itemName;
-        this.maxAvailableQuantity = maxQuantity;
-        this.isMachineryItem = isMachinery; // Store the isMachinery status
+        this.itemsToBorrow = itemsToBorrow; // Store the list of items
         this.listener = listener;
 
-        initComponents();
+        // Check if any item in the list is machinery
+        for (BorrowItemDetails item : itemsToBorrow) {
+            if (item.isMachinery()) {
+                hasMachineryItem = true;
+                break; // Found at least one machinery item, no need to check further
+            }
+        }
+
+        initComponents(); // NetBeans generated - should remain untouched
         setupDialog();
-        populateFields(); // Populate item details
+        populateFields(); // Populate item details in the table
     }
 
+    /**
+     * Sets up the properties and layout of the dialog.
+     */
     private void setupDialog() {
-        setTitle("Request Item: " + selectedItemName);
+        setTitle("Request Item(s)"); // Updated title
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setBackground(new Color(30, 30, 30));
-        setResizable(false); // Keep dialog fixed size
+        setResizable(true); // Allow resizing for the table
 
         JPanel formPanel = createFormPanel();
         JScrollPane formScrollPane = new JScrollPane(formPanel);
@@ -99,11 +128,15 @@ public class BorrowItemDialog extends JDialog {
         add(formScrollPane, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
 
-        setPreferredSize(new Dimension(450, 600)); // Initial size
+        setPreferredSize(new Dimension(500, 650)); // Initial size, adjusted for table
         pack();
         setLocationRelativeTo(getParent()); // Center the dialog
     }
 
+    /**
+     * Creates the panel containing the form fields for borrowing details.
+     * @return The JPanel for the form.
+     */
     private JPanel createFormPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setOpaque(false);
@@ -115,15 +148,46 @@ public class BorrowItemDialog extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
 
-        itemLabel = new JLabel("Item: " + selectedItemName);
-        itemLabel.setFont(new Font("Verdana", Font.BOLD, 14));
-        itemLabel.setForeground(Color.WHITE);
+        // Add a label for the list of items
+        JLabel itemsLabel = new JLabel("Items to Request:");
+        itemsLabel.setFont(new Font("Verdana", Font.BOLD, 14));
+        itemsLabel.setForeground(Color.WHITE);
 
-        availableQuantityLabel = new JLabel("Available: " + maxAvailableQuantity);
-        availableQuantityLabel.setFont(new Font("Verdana", Font.PLAIN, 12));
-        availableQuantityLabel.setForeground(Color.LIGHT_GRAY);
+        // Setup the table for items to borrow
+        String[] itemColumns = {"Item ID", "Item Name", "Available Qty", "Quantity to Borrow"};
+        itemsToBorrowTableModel = new DefaultTableModel(itemColumns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                // Only the "Quantity to Borrow" column is editable (index 3)
+                return column == 3;
+            }
 
-        borrowQuantityField = createEditableTextField();
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                if (columnIndex == 0 || columnIndex == 2 || columnIndex == 3) {
+                    return Integer.class; // Item ID, Available Qty, Quantity to Borrow are integers
+                }
+                return super.getColumnClass(columnIndex);
+            }
+        };
+        itemsToBorrowTable = new JTable(itemsToBorrowTableModel);
+        styleTable(itemsToBorrowTable); // Apply styling
+        itemsToBorrowTable.setRowHeight(25); // Set row height
+
+        // Center text in all cells of the table
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        for (int i = 0; i < itemsToBorrowTable.getColumnCount(); i++) {
+            itemsToBorrowTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+
+
+        JScrollPane itemsTableScrollPane = new JScrollPane(itemsToBorrowTable);
+        itemsTableScrollPane.getViewport().setBackground(new Color(40, 40, 40));
+        itemsTableScrollPane.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        itemsTableScrollPane.setPreferredSize(new Dimension(400, 150)); // Give the table a preferred size
+
+
         borrowerNameField = createEditableTextField();
         borrowerDepartmentField = createEditableTextField();
         borrowerGradeLevelField = createEditableTextField();
@@ -150,13 +214,14 @@ public class BorrowItemDialog extends JDialog {
 
         int y = 0;
         gbc.gridx = 0; gbc.gridy = y++; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
-        panel.add(itemLabel, gbc);
+        panel.add(itemsLabel, gbc); // Add the label for items list
 
-        gbc.gridy = y++;
-        panel.add(availableQuantityLabel, gbc);
+        gbc.gridy = y++; gbc.weighty = 1.0; gbc.fill = GridBagConstraints.BOTH; // Allow table to grow
+        panel.add(itemsTableScrollPane, gbc); // Add the table scroll pane
 
         gbc.gridwidth = 1; // Reset grid width
-        addField(panel, gbc, y++, "Quantity:", borrowQuantityField, true);
+        gbc.weighty = 0.0; // Reset weighty after table
+
         addField(panel, gbc, y++, "Name:", borrowerNameField, true);
         addField(panel, gbc, y++, "Department:", borrowerDepartmentField, true);
         addField(panel, gbc, y++, "Grade Level:", borrowerGradeLevelField, true);
@@ -164,20 +229,18 @@ public class BorrowItemDialog extends JDialog {
         addField(panel, gbc, y++, "School Year:", schoolYearField, true);
         addField(panel, gbc, y++, "Purpose:", purposeScrollPane, true);
 
-        // Conditionally add the Expected Return Date field and label based on IsMachinery
-        if (isMachineryItem) { // Only add if it's a machinery item
+        // Conditionally add the Expected Return Date field and label based on if any item is machinery
+        if (hasMachineryItem) { // Only add if at least one item is machinery
              addField(panel, gbc, y++, expectedReturnDateLabel.getText(), expectedReturnDateField, true);
         } else {
-             // If it's not a machinery, skip adding the field and label.
-             // The row index 'y' is not incremented here as the field is not added.
+             // If no machinery, skip adding the field and label.
+             // The row index 'y' is not incremented here.
         }
 
 
         gbc.gridx = 0;
         // Adjust the starting gridy for the spacer based on whether the return date field was added
-        // If it's a machinery, the spacer goes after the return date row (y was incremented).
-        // If it's not a machinery, the spacer goes after the purpose row (y was not incremented for return date).
-        gbc.gridy = isMachineryItem ? y : y; // This line is a bit redundant, but keeps the logic clear
+        gbc.gridy = hasMachineryItem ? y : y;
         gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.VERTICAL;
         panel.add(new JLabel(), gbc); // Spacer
@@ -185,11 +248,15 @@ public class BorrowItemDialog extends JDialog {
         return panel;
     }
 
+    /**
+     * Creates the panel containing the action buttons (Borrow and Cancel).
+     * @return The JPanel for the buttons.
+     */
     private JPanel createButtonPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
         panel.setOpaque(false);
 
-        borrowButton = new JButton("Request Item");
+        borrowButton = new JButton("Request Item(s)"); // Updated button text
         styleActionButton(borrowButton, new Color(46, 204, 113)); // Green for Borrow
         borrowButton.addActionListener((ActionEvent e) -> performBorrowTransaction());
         panel.add(borrowButton);
@@ -202,6 +269,11 @@ public class BorrowItemDialog extends JDialog {
         return panel;
     }
 
+    /**
+     * Styles a JButton with custom background, foreground, and font.
+     * @param button The button to style.
+     * @param bgColor The background color.
+     */
      private void styleActionButton(JButton button, Color bgColor) {
         button.setFont(new Font("Verdana", Font.BOLD, 14));
         button.setBackground(bgColor);
@@ -213,6 +285,10 @@ public class BorrowItemDialog extends JDialog {
         ));
     }
 
+    /**
+     * Creates a styled JTextField.
+     * @return The styled JTextField.
+     */
     private JTextField createEditableTextField() {
         JTextField textField = new JTextField(15);
         textField.setFont(new Font("Verdana", Font.PLAIN, 12));
@@ -222,6 +298,15 @@ public class BorrowItemDialog extends JDialog {
         return textField;
     }
 
+    /**
+     * Adds a labeled component to the panel using GridBagLayout.
+     * @param panel The panel to add to.
+     * @param gbc The GridBagConstraints.
+     * @param y The row index.
+     * @param labelText The text for the label.
+     * @param component The component to add.
+     * @param stretchHorizontally Whether the component should stretch horizontally.
+     */
     private void addField(JPanel panel, GridBagConstraints gbc, int y, String labelText, Component component, boolean stretchHorizontally) {
         gbc.gridx = 0;
         gbc.gridy = y;
@@ -237,7 +322,7 @@ public class BorrowItemDialog extends JDialog {
         gbc.fill = stretchHorizontally ? GridBagConstraints.HORIZONTAL : GridBagConstraints.NONE;
         gbc.weightx = stretchHorizontally ? 1.0 : 0.0;
          if (component instanceof JScrollPane) {
-             gbc.fill = GridBagConstraints.BOTH; // Allow description area to grow vertically
+             gbc.fill = GridBagConstraints.BOTH; // Allow description area or table to grow vertically
              gbc.weighty = 1.0; // Give vertical space
          } else {
              gbc.weighty = 0.0; // Reset weighty
@@ -246,46 +331,94 @@ public class BorrowItemDialog extends JDialog {
         panel.add(component, gbc);
 
         if (component instanceof JScrollPane) {
-            gbc.weighty = 0.0; // Reset weighty after placing the description area
+            gbc.weighty = 0.0; // Reset weighty after placing the scroll pane
         }
     }
 
-    private void populateFields() {
-        // Item details are already passed to the constructor
-        // borrowerNameField, etc., are left empty for the user to fill
+    /**
+     * Styles a JTable with custom colors and fonts.
+     * @param table The table to style.
+     */
+     private void styleTable(JTable table) {
+        table.setForeground(Color.WHITE);
+        table.setBackground(new Color(40, 40, 40));
+        table.setGridColor(new Color(60, 60, 60));
+        table.setSelectionBackground(new Color(51, 153, 255));
+        table.setSelectionForeground(Color.WHITE);
+        table.setFont(new Font("Verdana", Font.PLAIN, 12));
+        // Row height is set separately
+        table.setAutoCreateRowSorter(true);
+        table.getTableHeader().setFont(new Font("Verdana", Font.BOLD, 12));
+        table.getTableHeader().setBackground(new Color(50, 50, 50));
+        table.getTableHeader().setForeground(Color.WHITE);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION); // Keep single selection for the table within the dialog
     }
 
+
+    /**
+     * Populates the items table with the details of the items to be borrowed.
+     */
+    private void populateFields() {
+        // Populate the items table with details from the list passed to the constructor
+        itemsToBorrowTableModel.setRowCount(0); // Clear existing rows
+        for (BorrowItemDetails item : itemsToBorrow) {
+             itemsToBorrowTableModel.addRow(new Object[]{
+                 item.getItemId(),
+                 item.getItemName(),
+                 item.getMaxAvailableQuantity(),
+                 1 // Default quantity to borrow is 1
+             });
+        }
+        // Borrower info, purpose, and return date fields are left empty
+    }
+
+    /**
+     * Validates the user input in the form fields and the quantities in the table.
+     * @return true if the input is valid, false otherwise.
+     */
     private boolean validateInput() {
-        String borrowQtyStr = borrowQuantityField.getText().trim();
         String borrowerName = borrowerNameField.getText().trim();
         String purpose = purposeArea.getText().trim();
-        // Get date regardless of visibility, but will only be validated if isMachineryItem is true
+        // Get date regardless of visibility, but will only be validated if hasMachineryItem is true
         Date expectedReturnDate = expectedReturnDateField.getDate();
 
+        // Validate quantities for each item in the table
+        for (int i = 0; i < itemsToBorrowTableModel.getRowCount(); i++) {
+            int itemId = (Integer) itemsToBorrowTableModel.getValueAt(i, 0);
+            String itemName = (String) itemsToBorrowTableModel.getValueAt(i, 1);
+            int availableQty = (Integer) itemsToBorrowTableModel.getValueAt(i, 2);
+            Object borrowQtyObj = itemsToBorrowTableModel.getValueAt(i, 3);
 
-        if (borrowQtyStr.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Quantity cannot be empty.", "Input Error", JOptionPane.WARNING_MESSAGE);
-            borrowQuantityField.requestFocus();
-            return false;
-        }
-        int borrowQty;
-        try {
-            borrowQty = Integer.parseInt(borrowQtyStr);
-            if (borrowQty <= 0) {
-                JOptionPane.showMessageDialog(this, "Quantity must be a positive number.", "Input Error", JOptionPane.WARNING_MESSAGE);
-                borrowQuantityField.requestFocus();
+            if (borrowQtyObj == null || borrowQtyObj.toString().trim().isEmpty()) {
+                 JOptionPane.showMessageDialog(this, "Quantity to Borrow cannot be empty for item: " + itemName, "Input Error", JOptionPane.WARNING_MESSAGE);
+                 itemsToBorrowTable.requestFocus(); // Focus the table
+                 itemsToBorrowTable.changeSelection(i, 3, false, false); // Select the cell
+                 return false;
+            }
+
+            int borrowQty;
+            try {
+                borrowQty = Integer.parseInt(borrowQtyObj.toString().trim());
+                if (borrowQty <= 0) {
+                    JOptionPane.showMessageDialog(this, "Quantity to Borrow must be a positive number for item: " + itemName, "Input Error", JOptionPane.WARNING_MESSAGE);
+                     itemsToBorrowTable.requestFocus();
+                     itemsToBorrowTable.changeSelection(i, 3, false, false);
+                    return false;
+                }
+                if (borrowQty > availableQty) {
+                    JOptionPane.showMessageDialog(this, "Quantity to Borrow (" + borrowQty + ") exceeds available quantity (" + availableQty + ") for item: " + itemName, "Input Error", JOptionPane.WARNING_MESSAGE);
+                     itemsToBorrowTable.requestFocus();
+                     itemsToBorrowTable.changeSelection(i, 3, false, false);
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, "Invalid Quantity to Borrow format for item: " + itemName + ". Must be a number.", "Input Error", JOptionPane.WARNING_MESSAGE);
+                 itemsToBorrowTable.requestFocus();
+                 itemsToBorrowTable.changeSelection(i, 3, false, false);
                 return false;
             }
-            if (borrowQty > maxAvailableQuantity) {
-                JOptionPane.showMessageDialog(this, "Quantity (" + borrowQty + ") exceeds available quantity (" + maxAvailableQuantity + ").", "Input Error", JOptionPane.WARNING_MESSAGE);
-                 borrowQuantityField.requestFocus();
-                return false;
-            }
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Invalid Quantity format. Must be a number.", "Input Error", JOptionPane.WARNING_MESSAGE);
-            borrowQuantityField.requestFocus();
-            return false;
         }
+
 
         if (borrowerName.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Name cannot be empty.", "Input Error", JOptionPane.WARNING_MESSAGE);
@@ -299,9 +432,9 @@ public class BorrowItemDialog extends JDialog {
             return false;
         }
 
-        // Only validate Expected Return Date if the item IS a machinery
-        if (isMachineryItem && expectedReturnDate == null) {
-             JOptionPane.showMessageDialog(this, "Expected Return Date cannot be empty for this item.", "Input Error", JOptionPane.WARNING_MESSAGE);
+        // Only validate Expected Return Date if at least one item IS a machinery
+        if (hasMachineryItem && expectedReturnDate == null) {
+             JOptionPane.showMessageDialog(this, "Expected Return Date cannot be empty as at least one item is machinery.", "Input Error", JOptionPane.WARNING_MESSAGE);
              expectedReturnDateField.requestFocus();
             return false;
         }
@@ -310,6 +443,9 @@ public class BorrowItemDialog extends JDialog {
         return true;
     }
 
+    /**
+     * Performs the database transaction to record the borrowing of items.
+     */
     private void performBorrowTransaction() {
         if (!validateInput()) {
             return;
@@ -323,8 +459,6 @@ public class BorrowItemDialog extends JDialog {
             return;
         }
 
-
-        int borrowQty = Integer.parseInt(borrowQuantityField.getText().trim());
         String borrowerName = borrowerNameField.getText().trim();
         String borrowerDepartment = borrowerDepartmentField.getText().trim();
         String borrowerGradeLevel = borrowerGradeLevelField.getText().trim();
@@ -332,57 +466,99 @@ public class BorrowItemDialog extends JDialog {
         String schoolYear = schoolYearField.getText().trim();
         String purpose = purposeArea.getText().trim();
         // Get the date only if it's a machinery item
-        Date expectedReturnDate = isMachineryItem ? expectedReturnDateField.getDate() : null;
+        Date expectedReturnDate = hasMachineryItem ? expectedReturnDateField.getDate() : null;
+
+        // List to store details of items actually borrowed for the receipt
+        List<BorrowedItemInfo> borrowedItemsInfo = new ArrayList<>();
 
 
         // Use TransactionType 'Issued' for borrowing
         String sql = "INSERT INTO Transactions (ItemID, TransactionType, Quantity, UserID, IssuedToPersonName, IssuedToDepartment, IssuedToGradeLevel, IssuedToSection, SchoolYear, Purpose, ExpectedReturnDate) " +
                      "VALUES (?, 'Issued', ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, selectedItemId);
-            pstmt.setInt(2, borrowQty);
-            pstmt.setInt(3, kioskUser.getUserId()); // The Kiosk user performing the issue
-            pstmt.setString(4, borrowerName);
-            pstmt.setString(5, borrowerDepartment.isEmpty() ? null : borrowerDepartment);
-            pstmt.setString(6, borrowerGradeLevel.isEmpty() ? null : borrowerGradeLevel);
-            pstmt.setString(7, borrowerSection.isEmpty() ? null : borrowerSection);
-            pstmt.setString(8, schoolYear.isEmpty() ? null : schoolYear);
-            pstmt.setString(9, purpose);
-            // Set ExpectedReturnDate to SQL NULL if it's not a machinery item or the date is null
-            if (expectedReturnDate != null) {
-                 pstmt.setDate(10, new java.sql.Date(expectedReturnDate.getTime()));
-            } else {
-                 pstmt.setNull(10, Types.DATE); // Set to SQL NULL
-            }
+        try {
+            conn.setAutoCommit(false); // Start transaction
 
+            for (int i = 0; i < itemsToBorrowTableModel.getRowCount(); i++) {
+                int itemId = (Integer) itemsToBorrowTableModel.getValueAt(i, 0);
+                String itemName = (String) itemsToBorrowTableModel.getValueAt(i, 1); // Get item name for logging/receipt
+                int borrowQty = Integer.parseInt(itemsToBorrowTableModel.getValueAt(i, 3).toString().trim());
 
-            int rowsAffected = pstmt.executeUpdate();
-
-            if (rowsAffected > 0) {
-                JOptionPane.showMessageDialog(this, "Item(s) borrowed successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-
-                // Log the activity to the RecentActivities table
-                // Ensure you have a logActivity method accessible (e.g., in DBConnection or a utility class)
-                String logDetails = String.format("Borrowed %d unit(s) of '%s' (ID: %d) to %s.",
-                                                  borrowQty, selectedItemName, selectedItemId, borrowerName);
-                logActivity("Transaction: Issued", logDetails); // Corrected ActivityType string
-
-
-                // Generate and show receipt
-                generateAndShowReceipt(selectedItemId, selectedItemName, borrowQty, borrowerName, purpose, expectedReturnDate);
-
-                // Notify the listener (KioskDashboard) to refresh the available items list
-                if (listener != null) {
-                    listener.onBorrowComplete();
+                // Find the BorrowItemDetails for this item to get IsMachinery status
+                boolean isMachinery = false;
+                for(BorrowItemDetails itemDetail : itemsToBorrow) {
+                    if (itemDetail.getItemId() == itemId) {
+                        isMachinery = itemDetail.isMachinery();
+                        break;
+                    }
+                    // If the item is not found in the original list, it might be an issue,
+                    // but for now, we'll assume it exists and its machinery status is needed.
+                    // A more robust solution might re-fetch machinery status here if not found.
                 }
 
-                dispose(); // Close the dialog after successful transaction
-            } else {
-                JOptionPane.showMessageDialog(this, "Failed to record borrowing transaction.", "Error", JOptionPane.ERROR_MESSAGE);
+
+                try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setInt(1, itemId);
+                    pstmt.setInt(2, borrowQty);
+                    pstmt.setInt(3, kioskUser.getUserId()); // The Kiosk user performing the issue
+                    pstmt.setString(4, borrowerName);
+                    pstmt.setString(5, borrowerDepartment.isEmpty() ? null : borrowerDepartment);
+                    pstmt.setString(6, borrowerGradeLevel.isEmpty() ? null : borrowerGradeLevel);
+                    pstmt.setString(7, borrowerSection.isEmpty() ? null : borrowerSection);
+                    pstmt.setString(8, schoolYear.isEmpty() ? null : schoolYear);
+                    pstmt.setString(9, purpose);
+                    // Set ExpectedReturnDate to SQL NULL if it's not a machinery item or the date is null
+                    if (isMachinery && expectedReturnDate != null) { // Only set date if it's machinery AND date is provided
+                         pstmt.setDate(10, new java.sql.Date(expectedReturnDate.getTime()));
+                    } else {
+                         pstmt.setNull(10, Types.DATE); // Set to SQL NULL
+                    }
+
+
+                    int rowsAffected = pstmt.executeUpdate();
+
+                    if (rowsAffected > 0) {
+                        // Add item details to the list for the receipt
+                        borrowedItemsInfo.add(new BorrowedItemInfo(itemId, itemName, borrowQty, isMachinery));
+
+                         // Log the activity for each item transaction
+                         String logDetails = String.format("Borrowed %d unit(s) of '%s' (ID: %d) to %s.",
+                                                           borrowQty, itemName, itemId, borrowerName);
+                         logActivity("Transaction: Issued", logDetails); // Log each item transaction
+
+                    } else {
+                         // If a single item transaction fails, rollback the whole transaction
+                         throw new SQLException("Failed to record borrowing transaction for item: " + itemName);
+                    }
+                }
             }
 
+            conn.commit(); // Commit the transaction if all items were processed successfully
+
+            JOptionPane.showMessageDialog(this, "Item(s) borrowed successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+            // Generate and show receipt for all borrowed items
+            if (!borrowedItemsInfo.isEmpty()) {
+                 generateAndShowReceipt(borrowedItemsInfo, borrowerName, purpose, expectedReturnDate);
+            }
+
+
+            // Notify the listener (KioskDashboard) to refresh the available items list
+            if (listener != null) {
+                listener.onBorrowComplete();
+            }
+
+            dispose(); // Close the dialog after successful transaction
+
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback(); // Rollback transaction on error
+                    System.err.println("Transaction rolled back due to error during borrowing multiple items.");
+                }
+            } catch (SQLException ex) {
+                System.err.println("Error during transaction rollback: " + ex.getMessage());
+            }
             e.printStackTrace();
              // Check for insufficient stock error from trigger
             if (e.getSQLState() != null && e.getSQLState().equals("45000")) {
@@ -390,10 +566,22 @@ public class BorrowItemDialog extends JDialog {
             } else {
                 JOptionPane.showMessageDialog(this, "Database error during borrowing: " + e.getMessage(), "DB Error", JOptionPane.ERROR_MESSAGE);
             }
+        } finally {
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true); // Restore auto-commit
+                }
+            } catch (SQLException ex) {
+                System.err.println("Error restoring auto-commit: " + ex.getMessage());
+            }
         }
     }
 
-     // Assuming this method exists in DBConnection or a logging utility
+     /**
+      * Logs an activity in the database.
+      * @param activityType The type of activity.
+      * @param details The details of the activity.
+      */
      private void logActivity(String activityType, String details) {
         if (conn == null || kioskUser == null || kioskUser.getUserId() <= 0) {
             System.err.println("Cannot log activity: DB connection null or invalid UserID (" + (kioskUser != null ? kioskUser.getUserId() : "null") + ")");
@@ -414,19 +602,90 @@ public class BorrowItemDialog extends JDialog {
     }
 
 
-    private void generateAndShowReceipt(int itemId, String itemName, int quantity, String borrowerName, String purpose, Date expectedReturnDate) {
+    /**
+     * Generates and shows a receipt for the borrowed items.
+     * @param borrowedItemsInfo The list of items that were successfully borrowed.
+     * @param borrowerName The name of the person who borrowed the items.
+     * @param purpose The purpose of borrowing.
+     * @param expectedReturnDate The expected return date (can be null).
+     */
+    private void generateAndShowReceipt(List<BorrowedItemInfo> borrowedItemsInfo, String borrowerName, String purpose, Date expectedReturnDate) {
         // Create and show the receipt dialog
         ReceiptDialog receiptDialog = new ReceiptDialog(
             (Frame) SwingUtilities.getWindowAncestor(this),
             true, // modal
-            itemId,
-            itemName,
-            quantity,
+            borrowedItemsInfo, // Pass the list of borrowed items
             borrowerName,
             purpose,
             expectedReturnDate
         );
         receiptDialog.setVisible(true);
+    }
+
+    /**
+     * Simple class to hold details of a borrowed item for the receipt.
+     */
+    public static class BorrowedItemInfo {
+        private final int itemId;
+        private final String itemName;
+        private final int quantityBorrowed;
+        private final boolean isMachinery; // Include isMachinery status for receipt
+
+        public BorrowedItemInfo(int itemId, String itemName, int quantityBorrowed, boolean isMachinery) {
+            this.itemId = itemId;
+            this.itemName = itemName;
+            this.quantityBorrowed = quantityBorrowed;
+            this.isMachinery = isMachinery;
+        }
+
+        public int getItemId() {
+            return itemId;
+        }
+
+        public String getItemName() {
+            return itemName;
+        }
+
+        public int getQuantityBorrowed() {
+            return quantityBorrowed;
+        }
+
+        public boolean isMachinery() {
+            return isMachinery;
+        }
+    }
+
+     /**
+      * Simple class to hold item details needed in this dialog.
+      */
+    public static class BorrowItemDetails {
+        private final int itemId;
+        private final String itemName;
+        private final int maxAvailableQuantity;
+        private final boolean isMachinery;
+
+        public BorrowItemDetails(int itemId, String itemName, int maxAvailableQuantity, boolean isMachinery) {
+            this.itemId = itemId;
+            this.itemName = itemName;
+            this.maxAvailableQuantity = maxAvailableQuantity;
+            this.isMachinery = isMachinery;
+        }
+
+        public int getItemId() {
+            return itemId;
+        }
+
+        public String getItemName() {
+            return itemName;
+        }
+
+        public int getMaxAvailableQuantity() {
+            return maxAvailableQuantity;
+        }
+
+        public boolean isMachinery() {
+            return isMachinery;
+        }
     }
 
 

@@ -15,6 +15,7 @@ import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.util.Date; // Import java.util.Date
 import java.text.SimpleDateFormat;
+import java.util.List; // Import List
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -26,6 +27,9 @@ import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 
+// Import the BorrowedItemInfo class from BorrowItemDialog
+import modules.BorrowItemDialog.BorrowedItemInfo;
+
 
 public class ReceiptDialog extends JDialog {
 
@@ -34,9 +38,9 @@ public class ReceiptDialog extends JDialog {
     private JButton printButton;
     private JButton closeButton;
 
-    private int itemId;
-    private String itemName;
-    private int quantity;
+    // Use a list to store details of borrowed items
+    private List<BorrowedItemInfo> borrowedItemsInfo;
+
     private String borrowerName;
     private String purpose;
     private Date expectedReturnDate;
@@ -45,11 +49,10 @@ public class ReceiptDialog extends JDialog {
     private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 
-    public ReceiptDialog(java.awt.Frame parent, boolean modal, int itemId, String itemName, int quantity, String borrowerName, String purpose, Date expectedReturnDate) {
+    // Updated constructor to accept a list of BorrowedItemInfo
+    public ReceiptDialog(java.awt.Frame parent, boolean modal, List<BorrowedItemInfo> borrowedItemsInfo, String borrowerName, String purpose, Date expectedReturnDate) {
         super(parent, modal);
-        this.itemId = itemId;
-        this.itemName = itemName;
-        this.quantity = quantity;
+        this.borrowedItemsInfo = borrowedItemsInfo; // Store the list
         this.borrowerName = borrowerName;
         this.purpose = purpose;
         this.expectedReturnDate = expectedReturnDate;
@@ -131,10 +134,20 @@ public class ReceiptDialog extends JDialog {
         receipt.append("========================================\n");
         receipt.append("Transaction Date: ").append(dateTimeFormat.format(new Date())).append("\n");
         receipt.append("----------------------------------------\n");
-        receipt.append(String.format("%-15s: %s\n", "Item ID", itemId));
-        receipt.append(String.format("%-15s: %s\n", "Item Name", itemName));
-        receipt.append(String.format("%-15s: %d\n", "Quantity", quantity));
+
+        // List each borrowed item
+        receipt.append("Items Borrowed:\n");
+        receipt.append(String.format("%-10s %-20s %-10s\n", "Item ID", "Item Name", "Quantity"));
         receipt.append("----------------------------------------\n");
+        for (BorrowedItemInfo item : borrowedItemsInfo) {
+             receipt.append(String.format("%-10d %-20s %-10d\n",
+                                          item.getItemId(),
+                                          item.getItemName(),
+                                          item.getQuantityBorrowed()));
+        }
+        receipt.append("----------------------------------------\n");
+
+
         receipt.append(String.format("%-15s: %s\n", "Borrowed By", borrowerName));
         receipt.append(String.format("%-15s: %s\n", "Purpose", purpose));
         receipt.append(String.format("%-15s: %s\n", "Expected Return", expectedReturnDate != null ? dateFormat.format(expectedReturnDate) : "N/A"));

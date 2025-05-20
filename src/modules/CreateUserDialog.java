@@ -361,6 +361,8 @@ public class CreateUserDialog extends javax.swing.JDialog {
                                     parentPanel.fetchAndDisplayUsers();
                                     parentPanel.fetchAndDisplayCharts(); // Also refresh charts
                                 }
+                                // Close the dialog after successful creation
+                                dispose(); // Add dispose() here
 
                             } else {
                                 JOptionPane.showMessageDialog(CreateUserDialog.this, "Failed to create user.", "Creation Failed", JOptionPane.ERROR_MESSAGE);

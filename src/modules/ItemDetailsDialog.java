@@ -87,7 +87,7 @@ public class ItemDetailsDialog extends JDialog {
 
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     private final DecimalFormat decimalFormat = new DecimalFormat("#,##0.00"); // Format for Unit Price
-    private int affectedRows;
+    private int affectedRows; // This variable is not used and can be removed, or renamed and used to store rowsAffected.
 
     // Callback interface to notify the parent (Inventory) when changes are made
     public interface ItemDetailsListener {
@@ -687,12 +687,16 @@ public class ItemDetailsDialog extends JDialog {
                             }
                          }
                          logDetails = "Item '" + itemName + "' (ID: " + savedItemId + ") added.";
+                         // Dialog closes automatically after adding a new item
+                         dispose();
                     } else { // This block is for an updated existing item
                          savedItemId = Integer.parseInt(itemIdField.getText());
                          logDetails = "Item '" + itemName + "' (ID: " + savedItemId + ") updated.";
                          // For an updated item, the editable state and button visibility
                          // should already be correct based on its archived status,
                          // which was set in loadItemDetails. No need to change them here.
+                         // Dialog closes automatically after updating an existing item
+                         dispose(); // Add dispose() here for updates
                     }
 
 
@@ -702,8 +706,6 @@ public class ItemDetailsDialog extends JDialog {
                     if (listener != null) {
                         listener.itemSavedOrArchived(); // Notify listener on save
                     }
-                    // Keep the dialog open for further edits after save, or close if preferred
-                    // dispose(); // Uncomment to close after save
                 } else {
                     conn.rollback();
                     JOptionPane.showMessageDialog(this, "Failed to save item. No rows affected.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -753,9 +755,9 @@ public class ItemDetailsDialog extends JDialog {
             String sql = "UPDATE Items SET IsArchived = TRUE, UpdatedAt = NOW() WHERE ItemID = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, currentItemId);
-                int rowsAffected = pstmt.executeUpdate();
-                if (affectedRows > 0) {
-                    JOptionPane.showMessageDialog(this, "Item '" + itemName + "' archived successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                int rowsAffected = pstmt.executeUpdate(); // Correctly get rows affected
+                if (rowsAffected > 0) { // Check against rowsAffected
+                    JOptionPane.showMessageDialog(this, "Item '" + itemName + "' archived successfully.", "Success", JOptionPane.INFORMATION_MESSAGE); // Correct success message
                     logActivity("Item Archived", "Item '" + itemName + "' (ID: " + currentItemId + ") archived by user " + (currentUser != null ? currentUser.getUsername() : "Unknown"));
                     isArchived = true; // Update dialog state
                     setFieldsEditable(false); // Make fields non-editable after archiving
@@ -767,8 +769,8 @@ public class ItemDetailsDialog extends JDialog {
                     if (listener != null) {
                         listener.itemSavedOrArchived(); // Notify listener on archive
                     }
-                    // Optionally close the dialog after archiving
-                    // dispose();
+                    // Close the dialog after archiving
+                    dispose(); // Add dispose() here for archive
                 } else {
                     JOptionPane.showMessageDialog(this, "Item not found or could not be archived.", "Error", JOptionPane.WARNING_MESSAGE);
                 }
@@ -802,7 +804,7 @@ public class ItemDetailsDialog extends JDialog {
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, currentItemId);
                 int rowsAffected = pstmt.executeUpdate();
-                if (affectedRows > 0) {
+                if (rowsAffected > 0) { // Check against rowsAffected here as well
                     JOptionPane.showMessageDialog(this, "Item '" + itemName + "' restored successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
                     logActivity("Item Restored", "Item '" + itemName + "' (ID: " + currentItemId + ") restored by user " + (currentUser != null ? currentUser.getUsername() : "Unknown"));
                     isArchived = false; // Update dialog state
@@ -815,8 +817,8 @@ public class ItemDetailsDialog extends JDialog {
                     if (listener != null) {
                         listener.itemSavedOrArchived(); // Notify listener on restore
                     }
-                    // Optionally close the dialog after restoring
-                    // dispose();
+                    // Close the dialog after restoring
+                    dispose(); // Add dispose() here for restore
                 } else {
                     JOptionPane.showMessageDialog(this, "Item not found or could not be restored.", "Error", JOptionPane.WARNING_MESSAGE);
                 }
@@ -847,7 +849,7 @@ public class ItemDetailsDialog extends JDialog {
     }
 
     private void browseImage() {
-        // Only allow browsing if the fields are editable (i.e., not an archived item being viewed)
+        // Only allow Browse if the fields are editable (i.e., not an archived item being viewed)
         if (!nameField.isEditable()) { // Use nameField editable state as a proxy
              JOptionPane.showMessageDialog(this, "Cannot change image for an archived item.", "Action Blocked", JOptionPane.WARNING_MESSAGE);
              return;

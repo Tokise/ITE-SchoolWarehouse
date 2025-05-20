@@ -46,6 +46,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
     private JTable inventoryTable;
     private JTextField searchField;
     private JComboBox<String> categoryFilter;
+    private JComboBox<String> viewFilter; // New: for Active/Archived items
     private DefaultTableModel tableModel;
 
     private Connection conn = null;
@@ -223,6 +224,20 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         categoryFilter.addItem("All Categories");
         categoryFilter.setFont(new Font("Verdana", Font.PLAIN, 14));
         panel.add(categoryFilter);
+        
+        // New: Add View Filter for Active/Archived items
+        JLabel viewLabel = new JLabel("View:");
+        viewLabel.setFont(new Font("Verdana", Font.BOLD, 14));
+        viewLabel.setForeground(Color.WHITE);
+        panel.add(viewLabel);
+
+        viewFilter = new JComboBox<>();
+        viewFilter.addItem("Active Items");
+        viewFilter.addItem("Archived Items");
+        viewFilter.setFont(new Font("Verdana", Font.PLAIN, 14));
+        // Add action listener to trigger search when view filter changes
+        viewFilter.addActionListener((ActionEvent e) -> searchInventory()); //
+        panel.add(viewFilter);
 
         JButton searchBtn = new JButton("Search");
         searchBtn.setFont(new Font("Verdana", Font.BOLD, 14));
@@ -439,14 +454,23 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         if (conn == null) return;
         String searchText = searchField.getText().trim().toLowerCase();
         String selectedCategory = (String) categoryFilter.getSelectedItem();
+        String selectedView = (String) viewFilter.getSelectedItem(); //
 
         StringBuilder sqlBuilder = new StringBuilder("SELECT COUNT(*) AS total FROM Items i");
         if (selectedCategory != null && !selectedCategory.equals("All Categories")) {
             sqlBuilder.append(" JOIN Categories c ON i.CategoryID = c.CategoryID");
         }
 
-        // Only count non-archived items
-        sqlBuilder.append(" WHERE i.IsArchived = FALSE");
+        // Start with a generic WHERE clause to easily append conditions
+        sqlBuilder.append(" WHERE 1=1"); 
+
+        // Apply IsArchived filter based on viewFilter selection
+        if ("Active Items".equals(selectedView)) {
+            sqlBuilder.append(" AND i.IsArchived = FALSE");
+        } else if ("Archived Items".equals(selectedView)) {
+            sqlBuilder.append(" AND i.IsArchived = TRUE");
+        }
+
 
         if (!searchText.isEmpty()) {
             sqlBuilder.append(" AND (LOWER(i.ItemName) LIKE ? OR LOWER(i.Description) LIKE ? OR LOWER(i.SerialNumber) LIKE ?)");
@@ -519,6 +543,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
 
         String searchText = searchField.getText().trim().toLowerCase();
         String selectedCategoryFilter = (String) categoryFilter.getSelectedItem();
+        String selectedViewFilter = (String) viewFilter.getSelectedItem(); //
         int offset = (currentPage - 1) * itemsPerPage;
 
         StringBuilder sqlBuilder = new StringBuilder(
@@ -529,8 +554,15 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             "LEFT JOIN Categories c ON i.CategoryID = c.CategoryID"
         );
 
-        // Only fetch non-archived items
-        sqlBuilder.append(" WHERE i.IsArchived = FALSE");
+        // Start with a generic WHERE clause to easily append conditions
+        sqlBuilder.append(" WHERE 1=1"); 
+
+        // Apply IsArchived filter based on viewFilter selection
+        if ("Active Items".equals(selectedViewFilter)) {
+            sqlBuilder.append(" AND i.IsArchived = FALSE");
+        } else if ("Archived Items".equals(selectedViewFilter)) {
+            sqlBuilder.append(" AND i.IsArchived = TRUE");
+        }
 
         if (!searchText.isEmpty()) {
             sqlBuilder.append(" AND (LOWER(i.ItemName) LIKE ? OR LOWER(i.Description) LIKE ? OR LOWER(i.SerialNumber) LIKE ?)");
@@ -541,7 +573,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         sqlBuilder.append(" ORDER BY i.ItemID DESC LIMIT ? OFFSET ?");
 
         final String finalSql = sqlBuilder.toString();
-        currentDataLoader = new InventoryLoader(finalSql, searchText, selectedCategoryFilter, offset, itemsPerPage);
+        currentDataLoader = new InventoryLoader(finalSql, searchText, selectedCategoryFilter, offset, itemsPerPage, selectedViewFilter); //
         currentDataLoader.execute();
     }
 
@@ -552,13 +584,15 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         private final String categoryNameFilter;
         private final int offset;
         private final int limit;
+        private final String selectedViewFilter; //
 
-        public InventoryLoader(String sql, String searchText, String categoryNameFilter, int offset, int limit) {
+        public InventoryLoader(String sql, String searchText, String categoryNameFilter, int offset, int limit, String selectedViewFilter) {
             this.sql = sql;
             this.searchText = searchText;
             this.categoryNameFilter = categoryNameFilter;
             this.offset = offset;
             this.limit = limit;
+            this.selectedViewFilter = selectedViewFilter; //
              System.out.println("InventoryLoader created for page " + (offset / limit + 1)); // Debug print
             // Clear the table model on the Event Dispatch Thread (EDT)
             // before loading new data to prevent duplication when changing pages or searching.
@@ -573,6 +607,11 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
              System.out.println("InventoryLoader doInBackground started for page " + (offset / limit + 1)); // Debug print
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 int paramIndex = 1;
+                // No specific parameter for IsArchived filter needed here, as it's directly appended to SQL.
+                // Parameter indexing starts after the conditional WHERE clauses.
+                // The `WHERE 1=1` followed by `AND` clauses ensures that the parameter order
+                // for searchText and categoryNameFilter remains consistent as if `IsArchived` wasn't there.
+
                 if (!searchText.isEmpty()) {
                     String searchTerm = "%" + searchText + "%";
                     pstmt.setString(paramIndex++, searchTerm);
@@ -763,7 +802,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             return true;
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
