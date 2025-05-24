@@ -61,11 +61,6 @@ public class Dashboard extends javax.swing.JPanel {
     private JButton searchActivityButton;
     private String currentActivitySearchText = "";
 
-    // Assuming these are defined elsewhere or passed in,
-    // but for the purpose of adding action listeners, we'll assume they exist
-    // and add placeholder comments for navigation logic.
-    // private MainApplicationFrame parentFrame; // Example of a parent frame reference
-
     private static final String DB_URL = "jdbc:mysql://127.0.0.1:3307/assetwise_academia";
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = "root";
@@ -76,14 +71,8 @@ public class Dashboard extends javax.swing.JPanel {
         fetchStatsData();
         fetchInventoryCategoryData();
         fetchInventoryMovementData();
-        fetchRecentActivities(); // Initial load of recent activities
+        fetchRecentActivities();
     }
-
-    // If you have a reference to the main frame, you might set it like this:
-    // public void setParentFrame(MainApplicationFrame frame) {
-    //     this.parentFrame = frame;
-    // }
-
 
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
@@ -328,7 +317,7 @@ public class Dashboard extends javax.swing.JPanel {
     private void fetchStatsData() {
         try (Connection dbConn = getConnection()) {
 
-            try (PreparedStatement totalItemsStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM Items WHERE IsArchived = FALSE"); // Exclude archived items
+            try (PreparedStatement totalItemsStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM Items WHERE IsArchived = FALSE");
                  ResultSet totalItemsRs = totalItemsStmt.executeQuery()) {
                 if (totalItemsRs.next()) {
                     final String totalItems = String.valueOf(totalItemsRs.getInt(1));
@@ -340,8 +329,7 @@ public class Dashboard extends javax.swing.JPanel {
                 logAndSetNA("total items", e);
             }
 
-            // Assuming ReorderLevel is in the Items table and Quantity is > 0 for low stock check
-            try (PreparedStatement lowStockStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM Items WHERE Quantity > 0 AND Quantity <= ReorderLevel AND IsArchived = FALSE"); // Exclude archived and out of stock
+            try (PreparedStatement lowStockStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM Items WHERE Quantity > 0 AND Quantity <= ReorderLevel AND IsArchived = FALSE");
                  ResultSet lowStockRs = lowStockStmt.executeQuery()) {
                 if (lowStockRs.next()) {
                     final String lowStockItems = String.valueOf(lowStockRs.getInt(1));
@@ -353,8 +341,6 @@ public class Dashboard extends javax.swing.JPanel {
                 logAndSetNA("low stock", e);
             }
 
-            // Fetch count of pending Purchase Orders
-            // Assuming 'Pending' status covers all non-completed/non-cancelled POs you want to highlight
             try (PreparedStatement pendingOrdersStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM PurchaseOrders WHERE Status IN ('Draft', 'Pending Approval', 'Approved', 'Ordered', 'Partially Received', 'Pending Reorder')");
                  ResultSet pendingOrdersRs = pendingOrdersStmt.executeQuery()) {
                 if (pendingOrdersRs.next()) {
@@ -367,7 +353,7 @@ public class Dashboard extends javax.swing.JPanel {
                 logAndSetNA("pending orders", e);
             }
 
-            try (PreparedStatement totalUsersStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM Users WHERE IsActive = TRUE"); // Count active users
+            try (PreparedStatement totalUsersStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM Users WHERE IsActive = TRUE");
                  ResultSet totalUsersRs = totalUsersStmt.executeQuery()) {
                 if (totalUsersRs.next()) {
                     final String totalUsers = String.valueOf(totalUsersRs.getInt(1));
@@ -393,13 +379,8 @@ public class Dashboard extends javax.swing.JPanel {
 
     private void logAndSetNA(String statType, SQLException e) {
         System.err.println("Database error fetching " + statType + ": " + e.getMessage());
-        // Note: This method is currently only called for SQLException within fetchStatsData.
-        // The UI updates for N/A are handled in the catch block of fetchStatsData.
-        // This method name might be misleading if it doesn't actually set N/A universally.
-        // Keeping it for now as it was in the original code.
     }
 
-    // This method is not currently used in the Dashboard class, but keeping it in case it's used elsewhere or for future expansion.
     private String fetchUsername(int userId) {
         String fullName = null;
 
@@ -438,41 +419,25 @@ public class Dashboard extends javax.swing.JPanel {
         addItemButton.setFocusPainted(false);
         panel.add(addItemButton);
 
-        // Add ActionListener to the Add New Item button
         addItemButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 System.out.println("Add New Item button clicked.");
-                // TODO: Add navigation logic here to switch to the Add Item panel/module
-                // Example (requires a reference to the main frame and a method to switch panels):
-                // if (parentFrame != null) {
-                //     parentFrame.showPanel("AddItem"); // Assuming "AddItem" is the identifier for the Add Item panel
-                // } else {
-                //     System.err.println("Parent frame not set. Cannot navigate to Add Item panel.");
-                // }
             }
         });
 
 
-        javax.swing.JButton purchaseOrderButton = new javax.swing.JButton("Purchase Orders"); // Changed text slightly
+        javax.swing.JButton purchaseOrderButton = new javax.swing.JButton("Purchase Orders");
         purchaseOrderButton.setFont(new Font("Verdana", Font.BOLD, 14));
         purchaseOrderButton.setBackground(new Color(46, 204, 113));
         purchaseOrderButton.setForeground(Color.WHITE);
         purchaseOrderButton.setFocusPainted(false);
         panel.add(purchaseOrderButton);
 
-        // Add ActionListener to the Create Purchase Order button
         purchaseOrderButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 System.out.println("Purchase Orders button clicked.");
-                // TODO: Add navigation logic here to switch to the Purchase Order panel/module
-                 // Example (requires a reference to the main frame and a method to switch panels):
-                // if (parentFrame != null) {
-                //     parentFrame.showPanel("PurchaseOrder"); // Assuming "PurchaseOrder" is the identifier for the Purchase Order panel
-                // } else {
-                //     System.err.println("Parent frame not set. Cannot navigate to Purchase Order panel.");
-                // }
             }
         });
 
@@ -484,18 +449,10 @@ public class Dashboard extends javax.swing.JPanel {
         reportButton.setFocusPainted(false);
         panel.add(reportButton);
 
-        // Add ActionListener to the Generate Report button
         reportButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 System.out.println("Generate Report button clicked.");
-                // TODO: Add navigation logic here to switch to the Reporting panel/module or open a report dialog
-                 // Example (requires a reference to the main frame and a method to switch panels or open dialog):
-                // if (parentFrame != null) {
-                //     parentFrame.showPanel("Reports"); // Assuming "Reports" is the identifier for the Reports panel
-                // } else {
-                //     System.err.println("Parent frame not set. Cannot navigate to Reports panel.");
-                // }
             }
         });
 
@@ -506,12 +463,10 @@ public class Dashboard extends javax.swing.JPanel {
     private void fetchRecentActivities() {
         System.out.println("Fetching recent activities for page " + currentPage + " with search: '" + currentActivitySearchText + "'");
 
-        // Updated filter to explicitly include Purchase Order related activities
         StringBuilder activityFilterClause = new StringBuilder("WHERE (ra.ActivityType = 'Transaction: Issued' OR ra.ActivityType LIKE 'Item Added%' OR ra.ActivityType LIKE 'Item Updated%' OR ra.ActivityType LIKE 'Item Deleted%' OR ra.ActivityType = 'New User' OR ra.ActivityType = 'User Login' OR ra.ActivityType = 'Item Issued' OR ra.ActivityType = 'Purchase Order Created' OR ra.ActivityType = 'Purchase Order Approved' OR ra.ActivityType = 'Purchase Order Received' OR ra.ActivityType = 'Purchase Order Cancelled' OR ra.ActivityType = 'Purchase Order Updated')");
 
 
         if (currentActivitySearchText != null && !currentActivitySearchText.isEmpty()) {
-            // Apply search filter to ActivityType, Details, or UserName
             activityFilterClause.append(" AND (LOWER(ra.ActivityType) LIKE ? OR LOWER(ra.Details) LIKE ? OR LOWER(u.FullName) LIKE ?)");
         }
 
@@ -522,7 +477,7 @@ public class Dashboard extends javax.swing.JPanel {
         totalActivities = 0;
         totalPages = 1;
 
-        System.out.println("Count SQL: " + countSql); // Debug print count SQL
+        System.out.println("Count SQL: " + countSql);
 
         try (Connection dbConn = getConnection();
              PreparedStatement countPstmt = dbConn.prepareStatement(countSql)) {
@@ -552,7 +507,7 @@ public class Dashboard extends javax.swing.JPanel {
                 currentPage = 1;
             }
 
-            System.out.println("Total activities (filtered): " + totalActivities + ", Total pages: " + totalPages + ", Current page: " + currentPage); // Debug print counts and pages
+            System.out.println("Total activities (filtered): " + totalActivities + ", Total pages: " + totalPages + ", Current page: " + currentPage);
 
         } catch (SQLException e) {
             System.err.println("Error counting recent activities with filter: " + e.getMessage());
@@ -571,8 +526,8 @@ public class Dashboard extends javax.swing.JPanel {
                          " ORDER BY ra.ActivityDate DESC " +
                          "LIMIT ? OFFSET ?";
 
-        System.out.println("Data SQL: " + dataSql); // Debug print data SQL
-        System.out.println("Limit: " + itemsPerPage + ", Offset: " + offset); // Debug print limit and offset
+        System.out.println("Data SQL: " + dataSql);
+        System.out.println("Limit: " + itemsPerPage + ", Offset: " + offset);
 
 
         try (Connection dbConn = getConnection();
@@ -591,7 +546,7 @@ public class Dashboard extends javax.swing.JPanel {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 boolean dataFoundOnPage = false;
-                 System.out.println("Executing data query..."); // Debug print before processing results
+                 System.out.println("Executing data query...");
                 while (rs.next()) {
                     dataFoundOnPage = true;
                     LocalDateTime dateTime = null;
@@ -604,32 +559,29 @@ public class Dashboard extends javax.swing.JPanel {
                     String details = rs.getString("Details");
                     String displayUser = (userName != null && !userName.trim().isEmpty()) ? userName : "System/Unknown";
 
-                    System.out.println("Fetched Row: Date=" + formattedDate + ", Type=" + activityType + ", User=" + displayUser + ", Details=" + details); // Debug print fetched row
+                    System.out.println("Fetched Row: Date=" + formattedDate + ", Type=" + activityType + ", User=" + displayUser + ", Details=" + details);
 
 
                     final Object[] rowData = {formattedDate, activityType, displayUser, details};
                     SwingUtilities.invokeLater(() -> recentActivitiesModel.addRow(rowData));
                 }
-                 System.out.println("Finished processing data results. Data found on page: " + dataFoundOnPage); // Debug print after processing results
+                 System.out.println("Finished processing data results. Data found on page: " + dataFoundOnPage);
 
 
                  if (!dataFoundOnPage && totalActivities > 0) {
-                      // This can happen if the last page is deleted or filtered out
-                      // Go back to the previous page if possible
                       if (currentPage > 1) {
                           currentPage--;
-                          System.out.println("No data on current page, moving to previous page: " + currentPage); // Debug print page change
-                          fetchRecentActivities(); // Re-fetch data for the previous page
+                          System.out.println("No data on current page, moving to previous page: " + currentPage);
+                          fetchRecentActivities();
                       } else {
-                          // If on the first page and no data, clear table and show no activities
-                           System.out.println("No data on first page, showing 'No matching activities found'."); // Debug print no data message
+                           System.out.println("No data on first page, showing 'No matching activities found'.");
                           SwingUtilities.invokeLater(() -> {
                               recentActivitiesModel.setRowCount(0);
                               recentActivitiesModel.addRow(new Object[]{"", "No matching activities found", "", ""});
                           });
                       }
                  } else if (!dataFoundOnPage && totalActivities == 0) {
-                      System.out.println("No activities found in total (with filter)."); // Debug print no total activities
+                      System.out.println("No activities found in total (with filter).");
                      SwingUtilities.invokeLater(() -> {
                          recentActivitiesModel.setRowCount(0);
                          recentActivitiesModel.addRow(new Object[]{"", "No matching activities found", "", ""});
@@ -645,7 +597,6 @@ public class Dashboard extends javax.swing.JPanel {
                 recentActivitiesModel.addRow(new Object[]{"N/A", "Error", "System", "Could not fetch activities"});
             });
         } finally {
-            // Explicitly notify the table model that data has changed
             SwingUtilities.invokeLater(() -> {
                 recentActivitiesModel.fireTableDataChanged();
                 updatePaginationControls();
@@ -657,13 +608,7 @@ public class Dashboard extends javax.swing.JPanel {
         int newPage = currentPage + direction;
         if (newPage >= 1 && newPage <= totalPages) {
             currentPage = newPage;
-            // Using SwingUtilities.invokeLater to ensure UI update is on EDT,
-            // but the data fetching itself should ideally be in a SwingWorker
-            // to avoid blocking the EDT. For simplicity here, we'll call fetchRecentActivities
-            // directly, assuming its internal database operations are fast or
-            // it already uses a worker (which it does not currently).
-            // A better approach would be to use a SwingWorker for fetchRecentActivities.
-            fetchRecentActivities(); // Re-fetch activities for the new page
+            fetchRecentActivities();
         } else {
              System.out.println("Change page ignored: newPage (" + newPage + ") out of bounds (1-" + totalPages + ")");
         }
@@ -684,7 +629,7 @@ public class Dashboard extends javax.swing.JPanel {
 
     private void fetchInventoryCategoryData() {
         categoryDataset.clear();
-        String sql = "SELECT c.CategoryName, COUNT(i.ItemID) AS ItemCount FROM Categories c LEFT JOIN Items i ON c.CategoryID = c.CategoryID WHERE i.IsArchived = FALSE OR i.ItemID IS NULL GROUP BY c.CategoryName"; // Include categories with no non-archived items
+        String sql = "SELECT c.CategoryName, COUNT(i.ItemID) AS ItemCount FROM Categories c LEFT JOIN Items i ON c.CategoryID = c.CategoryID WHERE i.IsArchived = FALSE OR i.ItemID IS NULL GROUP BY c.CategoryName";
         try (Connection dbConn = getConnection();
              PreparedStatement pstmt = dbConn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
@@ -692,7 +637,7 @@ public class Dashboard extends javax.swing.JPanel {
                 final String categoryName = rs.getString("CategoryName");
                 final double itemCount = rs.getDouble("ItemCount");
                 SwingUtilities.invokeLater(() -> {
-                    if (itemCount > 0) { // Only add categories with items
+                    if (itemCount > 0) {
                          categoryDataset.setValue(categoryName, itemCount);
                     }
                 });

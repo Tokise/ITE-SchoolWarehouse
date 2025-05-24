@@ -5,7 +5,6 @@ public class User {
     private String fullName;
     private String role;
     private int userId;
-    // Added field for profile picture
     private byte[] profilePicture;
 
     public String getUsername() {
@@ -40,17 +39,14 @@ public class User {
         this.userId = userId;
     }
 
-    // Added getter for profile picture
     public byte[] getProfilePicture() {
         return profilePicture;
     }
 
-    // Added setter for profile picture
     public void setProfilePicture(byte[] profilePicture) {
         this.profilePicture = profilePicture;
     }
 
-    // Helper method to check if the user is an admin
     public boolean isAdmin() {
         return "Admin".equals(role);
     }
@@ -62,7 +58,6 @@ public class User {
                ", username='" + username + '\'' +
                ", fullName='" + fullName + '\'' +
                ", role='" + role + '\'' +
-               // Avoid printing the large byte array directly in toString
                ", profilePicture=" + (profilePicture != null ? "present (" + profilePicture.length + " bytes)" : "absent") +
                '}';
     }

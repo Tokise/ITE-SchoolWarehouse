@@ -24,10 +24,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
-import java.text.DecimalFormat; // Import DecimalFormat
-import java.text.ParseException; // Import ParseException
+import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date; // Import java.util.Date
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.BorderFactory;
@@ -47,7 +47,7 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import com.toedter.calendar.JDateChooser;
-import java.math.BigDecimal; // Import BigDecimal
+import java.math.BigDecimal;
 
 public class ItemDetailsDialog extends JDialog {
 
@@ -58,7 +58,7 @@ public class ItemDetailsDialog extends JDialog {
     private JTextField quantityField;
     private JTextField reorderLevelField;
     private JComboBox<String> unitField;
-    private JTextField unitPriceField; // Added UnitPrice field
+    private JTextField unitPriceField;
     private JLabel imageLabel;
     private File selectedImageFile;
     private String selectedImageType;
@@ -78,20 +78,18 @@ public class ItemDetailsDialog extends JDialog {
 
     private Connection conn;
     private User currentUser;
-    private int currentItemId = -1; // -1 indicates a new item
+    private int currentItemId = -1;
 
-    // Flag to track if the dialog is currently adding a new item (true) or editing an existing one (false)
-    private boolean isNewItem = true; // This variable is correctly declared here
+    private boolean isNewItem = true;
 
-    private boolean isArchived = false; // Track if the item is currently archived
+    private boolean isArchived = false;
 
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-    private final DecimalFormat decimalFormat = new DecimalFormat("#,##0.00"); // Format for Unit Price
-    private int affectedRows; // This variable is not used and can be removed, or renamed and used to store rowsAffected.
+    private final DecimalFormat decimalFormat = new DecimalFormat("#,##0.00");
+    private int affectedRows;
 
-    // Callback interface to notify the parent (Inventory) when changes are made
     public interface ItemDetailsListener {
-        void itemSavedOrArchived(); // Method name updated for clarity
+        void itemSavedOrArchived();
     }
 
     private ItemDetailsListener listener;
@@ -103,7 +101,7 @@ public class ItemDetailsDialog extends JDialog {
         this.listener = listener;
         initComponents();
         setupDialog();
-        loadCategories(); // Load categories when the dialog is created
+        loadCategories();
     }
 
     private void setupDialog() {
@@ -111,7 +109,7 @@ public class ItemDetailsDialog extends JDialog {
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setBackground(new Color(30, 30, 30));
-        setResizable(true); // Allow resizing
+        setResizable(true);
 
         JPanel formPanel = createFormPanel();
         JScrollPane formScrollPane = new JScrollPane(formPanel);
@@ -124,15 +122,15 @@ public class ItemDetailsDialog extends JDialog {
         add(formScrollPane, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
 
-        setPreferredSize(new Dimension(500, 700)); // Initial size
+        setPreferredSize(new Dimension(500, 700));
         pack();
-        setLocationRelativeTo(getParent()); // Center the dialog
+        setLocationRelativeTo(getParent());
     }
 
     private JPanel createFormPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Add padding
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 8, 5, 8);
@@ -160,7 +158,7 @@ public class ItemDetailsDialog extends JDialog {
         ((JLabel)categoryField.getRenderer()).setHorizontalAlignment(SwingConstants.CENTER);
 
 
-        quantityField = createEditableTextField(); // This will be made non-editable for existing items
+        quantityField = createEditableTextField();
         reorderLevelField = createEditableTextField();
         String[] units = {"pcs", "boxes", "packs", "reams", "liters", "kg", "meters", "rolls", "units", "sets"};
         unitField = new JComboBox<>(units);
@@ -170,7 +168,7 @@ public class ItemDetailsDialog extends JDialog {
         unitField.setForeground(Color.WHITE);
          ((JLabel)unitField.getRenderer()).setHorizontalAlignment(SwingConstants.CENTER);
 
-        unitPriceField = createEditableTextField(); // Initialize UnitPrice field
+        unitPriceField = createEditableTextField();
 
         isMachineryCheckBox = new JCheckBox("Is Machinery?");
         isMachineryCheckBox.setOpaque(false);
@@ -208,16 +206,16 @@ public class ItemDetailsDialog extends JDialog {
         warrantyExpiryDateField.setForeground(Color.WHITE);
 
 
-        toggleMachineSpecificFields(false); // Initial state
+        toggleMachineSpecificFields(false);
 
         int y = 0;
         addField(panel, gbc, y++, "Item ID:", itemIdField, false);
         addField(panel, gbc, y++, "Name:", nameField, true);
         addField(panel, gbc, y++, "Description:", descriptionScrollPane, true);
         addField(panel, gbc, y++, "Category:", categoryField, true);
-        addField(panel, gbc, y++, "Quantity:", quantityField, true); // Quantity field
+        addField(panel, gbc, y++, "Quantity:", quantityField, true);
         addField(panel, gbc, y++, "Unit:", unitField, true);
-        addField(panel, gbc, y++, "Unit Price:", unitPriceField, true); // Added UnitPrice field
+        addField(panel, gbc, y++, "Unit Price:", unitPriceField, true);
         addField(panel, gbc, y++, "Reorder Lvl:", reorderLevelField, true);
 
         gbc.gridx = 0; gbc.gridy = y++; gbc.gridwidth = 2; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
@@ -257,7 +255,7 @@ public class ItemDetailsDialog extends JDialog {
         gbc.gridy = y;
         gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.VERTICAL;
-        panel.add(new JLabel(), gbc); // Spacer
+        panel.add(new JLabel(), gbc);
 
         return panel;
     }
@@ -267,25 +265,25 @@ public class ItemDetailsDialog extends JDialog {
         panel.setOpaque(false);
 
         saveButton = new JButton("Save");
-        styleActionButton(saveButton, new Color(46, 204, 113)); // Green for Save
+        styleActionButton(saveButton, new Color(46, 204, 113));
         saveButton.addActionListener((ActionEvent e) -> saveItem());
         panel.add(saveButton);
 
-        archiveButton = new JButton("Archive"); // Button to archive
-        styleActionButton(archiveButton, new Color(231, 76, 60)); // Red for Archive
+        archiveButton = new JButton("Archive");
+        styleActionButton(archiveButton, new Color(231, 76, 60));
         archiveButton.addActionListener((ActionEvent e) -> archiveItem());
         panel.add(archiveButton);
 
-        restoreButton = new JButton("Restore"); // Button to restore from archive
-        styleActionButton(restoreButton, new Color(52, 152, 219)); // Blue for Restore
+        restoreButton = new JButton("Restore");
+        styleActionButton(restoreButton, new Color(52, 152, 219));
         restoreButton.addActionListener((ActionEvent e) -> restoreItem());
-        restoreButton.setVisible(false); // Initially hidden
+        restoreButton.setVisible(false);
         panel.add(restoreButton);
 
 
         cancelButton = new JButton("Cancel");
-        styleActionButton(cancelButton, new Color(149, 165, 166)); // Gray for Cancel
-        cancelButton.addActionListener((ActionEvent e) -> dispose()); // Close the dialog
+        styleActionButton(cancelButton, new Color(149, 165, 166));
+        cancelButton.addActionListener((ActionEvent e) -> dispose());
         panel.add(cancelButton);
 
         return panel;
@@ -336,24 +334,23 @@ public class ItemDetailsDialog extends JDialog {
         gbc.fill = stretchHorizontally ? GridBagConstraints.HORIZONTAL : GridBagConstraints.NONE;
         gbc.weightx = stretchHorizontally ? 1.0 : 0.0;
          if (component instanceof JScrollPane) {
-             gbc.fill = GridBagConstraints.BOTH; // Allow description area to grow vertically
-             gbc.weighty = 1.0; // Give vertical space
+             gbc.fill = GridBagConstraints.BOTH;
+             gbc.weighty = 1.0;
          } else {
-             gbc.weighty = 0.0; // Reset weighty
+             gbc.weighty = 0.0;
          }
 
         panel.add(component, gbc);
 
         if (component instanceof JScrollPane) {
-            gbc.weighty = 0.0; // Reset weighty after placing the description area
+            gbc.weighty = 0.0;
         }
     }
 
      private void toggleMachineSpecificFields(boolean enabled) {
-        // Only toggle if the dialog is in an editable state
-        boolean dialogEditable = nameField.isEditable(); // Use nameField editable state as a proxy for dialog editable state
+        boolean dialogEditable = nameField.isEditable();
         machineStatusField.setEnabled(enabled && dialogEditable);
-        reorderLevelField.setEnabled(!enabled && dialogEditable); // Disable reorder level for machinery only if editable
+        reorderLevelField.setEnabled(!enabled && dialogEditable);
 
         if (!enabled) {
             machineStatusField.setSelectedItem("Not Applicable");
@@ -361,7 +358,7 @@ public class ItemDetailsDialog extends JDialog {
              if ("Not Applicable".equals(machineStatusField.getSelectedItem())) {
                 machineStatusField.setSelectedItem("Active");
             }
-            reorderLevelField.setText("0"); // Set reorder level to 0 or empty for machinery
+            reorderLevelField.setText("0");
         }
     }
 
@@ -387,13 +384,12 @@ public class ItemDetailsDialog extends JDialog {
 
     public void loadItemDetails(int itemId) {
         this.currentItemId = itemId;
-        isNewItem = false; // Loading an existing item
+        isNewItem = false;
 
         if (conn == null) {
              JOptionPane.showMessageDialog(this, "Database not connected. Cannot load item details.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        // Added UnitPrice to the SELECT statement
         String sql = "SELECT i.*, c.CategoryName FROM Items i LEFT JOIN Categories c ON i.CategoryID = c.CategoryID WHERE i.ItemID = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, itemId);
@@ -406,14 +402,12 @@ public class ItemDetailsDialog extends JDialog {
                     quantityField.setText(String.valueOf(rs.getInt("Quantity")));
                     reorderLevelField.setText(String.valueOf(rs.getInt("ReorderLevel")));
                     unitField.setSelectedItem(rs.getString("Unit"));
-                    // Set UnitPrice field, format as currency
                     BigDecimal unitPrice = rs.getBigDecimal("UnitPrice");
                     unitPriceField.setText(unitPrice != null ? decimalFormat.format(unitPrice) : "0.00");
 
 
                     boolean isMachinery = rs.getBoolean("IsMachinery");
                     isMachineryCheckBox.setSelected(isMachinery);
-                    // Machine status and item condition will be set below based on archived status
 
                     locationField.setText(rs.getString("Location"));
                     serialNumberField.setText(rs.getString("SerialNumber"));
@@ -423,29 +417,26 @@ public class ItemDetailsDialog extends JDialog {
                     Date wDate = rs.getDate("WarrantyExpiryDate");
                     warrantyExpiryDateField.setDate(wDate);
 
-                    isArchived = rs.getBoolean("IsArchived"); // Get archived status from DB
+                    isArchived = rs.getBoolean("IsArchived");
 
                     if (isArchived) {
                          setTitle("View Archived Item Details");
-                         setFieldsEditable(false); // Set editable based on archived status
+                         setFieldsEditable(false);
                          saveButton.setVisible(false);
                          archiveButton.setVisible(false);
                          restoreButton.setVisible(true);
-                         // Set machine status and item condition for archived items (they are non-editable)
                          machineStatusField.setSelectedItem(rs.getString("MachineStatus"));
                          itemConditionField.setSelectedItem(rs.getString("ItemCondition"));
                     } else {
                          setTitle("Edit Item Details");
-                         setFieldsEditable(true); // Set editable based on archived status
+                         setFieldsEditable(true);
                          saveButton.setVisible(true);
                          archiveButton.setVisible(true);
                          restoreButton.setVisible(false);
-                         // Set machine status and item condition for non-archived items (they are editable or not based on isMachinery)
                          machineStatusField.setSelectedItem(rs.getString("MachineStatus"));
                          itemConditionField.setSelectedItem(rs.getString("ItemCondition"));
                     }
 
-                    // Ensure machinery specific fields are toggled correctly based on checkbox state AND editable state
                     toggleMachineSpecificFields(isMachineryCheckBox.isSelected());
 
 
@@ -455,12 +446,11 @@ public class ItemDetailsDialog extends JDialog {
                     } catch(SQLException exImg) {
                         System.err.println("Error reading image blob: " + exImg.getMessage());
                     }
-                    selectedImageFile = null; // Clear selected file when loading from DB
+                    selectedImageFile = null;
                     if (imageData != null && imageData.length > 0) {
                         try {
                             ImageIcon iIcon = new ImageIcon(imageData);
                             Image originalImage = iIcon.getImage();
-                            // Scale image for display in the label
                              Image scaledImage = originalImage.getScaledInstance(
                                     imageLabel.getPreferredSize().width > 0 ? imageLabel.getPreferredSize().width : 200,
                                     imageLabel.getPreferredSize().height > 0 ? imageLabel.getPreferredSize().height : 150,
@@ -480,67 +470,59 @@ public class ItemDetailsDialog extends JDialog {
                     }
                     selectedImageType = rs.getString("ItemImageType");
 
-                    setVisible(true); // Show the dialog
+                    setVisible(true);
                 } else {
                     JOptionPane.showMessageDialog(this, "Item with ID " + itemId + " not found.", "Not Found", JOptionPane.WARNING_MESSAGE);
-                    dispose(); // Close dialog if item not found
+                    dispose();
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            // Updated error message to mention UnitPrice column
             JOptionPane.showMessageDialog(this, "Error loading item details: " + e.getMessage() + "\nEnsure your database schema includes the 'UnitPrice' column in the 'Items' table.", "DB Error", JOptionPane.ERROR_MESSAGE);
-            dispose(); // Close dialog on error
+            dispose();
         }
     }
 
     public void prepareNewItem() {
-        isNewItem = true; // Preparing a new item
+        isNewItem = true;
         currentItemId = -1;
-        isArchived = false; // New items are not archived
+        isArchived = false;
         setTitle("Add New Item");
         clearFields();
-        setFieldsEditable(true); // New items are always editable
+        setFieldsEditable(true);
         saveButton.setVisible(true);
-        archiveButton.setVisible(false); // Hide archive for new items
-        restoreButton.setVisible(false); // Hide restore for new items
+        archiveButton.setVisible(false);
+        restoreButton.setVisible(false);
 
-        // Fetch and display the next available ID (preview)
         int nextId = getNextAvailableItemId();
         if (nextId > 0) {
             itemIdField.setText(String.valueOf(nextId));
         } else {
-            itemIdField.setText("Error getting ID"); // Indicate if fetching failed
+            itemIdField.setText("Error getting ID");
         }
 
-        setVisible(true); // Show the dialog
+        setVisible(true);
         nameField.requestFocus();
-        toggleMachineSpecificFields(false); // Start with machinery fields disabled for new item
+        toggleMachineSpecificFields(false);
     }
 
      private int getNextAvailableItemId() {
         if (conn == null) {
             System.err.println("Cannot get next item ID: DB connection is null.");
-            return -1; // Indicate failure
+            return -1;
         }
-        // This query finds the maximum current ID and adds 1.
-        // It assumes auto-increment behavior and is a preview.
-        // The actual ID is assigned by the DB on INSERT.
         String sql = "SELECT MAX(ItemID) FROM Items";
         try (PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
             if (rs.next()) {
-                // If there are existing items, maxId will be > 0. Add 1.
-                // If no items exist, maxId will be 0 (or null, handled by getInt(1)), so nextId will be 1.
                 return rs.getInt(1) + 1;
             } else {
-                // Should not happen with MAX(), but as a fallback
                 return 1;
             }
         } catch (SQLException e) {
             System.err.println("Error fetching next available ItemID: " + e.getMessage());
             e.printStackTrace();
-            return -1; // Indicate failure
+            return -1;
         }
     }
 
@@ -562,15 +544,13 @@ public class ItemDetailsDialog extends JDialog {
         String itemName = nameField.getText().trim();
         String description = descriptionArea.getText().trim();
         String categoryName = (String) categoryField.getSelectedItem();
-        // Quantity is not saved here if it's an existing item, as per requirement
-        int quantity = isNewItem ? Integer.parseInt(quantityField.getText().trim()) : 0; // Only get quantity for new items
+        int quantity = isNewItem ? Integer.parseInt(quantityField.getText().trim()) : 0;
         int reorderLevel = reorderLevelField.isEnabled() ? Integer.parseInt(reorderLevelField.getText().trim()) : 0;
         String unit = unitField.getSelectedItem().toString().trim();
         BigDecimal unitPrice;
         try {
-            // Parse the formatted Unit Price string
             Number parsedPrice = decimalFormat.parse(unitPriceField.getText().trim());
-            unitPrice = new BigDecimal(parsedPrice.doubleValue()); // Convert to BigDecimal
+            unitPrice = new BigDecimal(parsedPrice.doubleValue());
         } catch (ParseException e) {
             JOptionPane.showMessageDialog(this, "Invalid Unit Price format. Please enter a valid number.", "Input Error", JOptionPane.WARNING_MESSAGE);
             unitPriceField.requestFocusInWindow();
@@ -583,8 +563,8 @@ public class ItemDetailsDialog extends JDialog {
         String itemCondition = (String) itemConditionField.getSelectedItem();
         String location = locationField.getText().trim();
         String serialNumber = serialNumberField.getText().trim();
-        Date purchaseDateVal = purchaseDateField.getDate(); // purchaseDateVal is a Date object
-        Date warrantyExpiryDateVal = warrantyExpiryDateField.getDate(); // warrantyExpiryDateVal is a Date object
+        Date purchaseDateVal = purchaseDateField.getDate();
+        Date warrantyExpiryDateVal = warrantyExpiryDateField.getDate();
 
         int categoryId = getCategoryId(categoryName);
          if (categoryId == -1 && categoryName != null && !categoryName.isEmpty()) {
@@ -603,16 +583,13 @@ public class ItemDetailsDialog extends JDialog {
             conn.setAutoCommit(false);
 
             if (isNewItem) {
-                 // Ensure IsArchived is FALSE for new items
-                // Added UnitPrice to the INSERT statement
                 sql = "INSERT INTO Items (ItemName, Description, CategoryID, Quantity, ReorderLevel, Unit, UnitPrice, " +
                       "IsMachinery, MachineStatus, ItemCondition, Location, SerialNumber, PurchaseDate, WarrantyExpiryDate, " +
-                      "ItemImage, ItemImageType, AddedBy, IsArchived, CreatedAt) " + // Include IsArchived
+                      "ItemImage, ItemImageType, AddedBy, IsArchived, CreatedAt) " +
                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
                 successMessage = "Item added successfully.";
                 logActivityType = "Item Added";
             } else {
-                // Added UnitPrice to the UPDATE statement, removed Quantity from UPDATE
                 sql = "UPDATE Items SET ItemName=?, Description=?, CategoryID=?, ReorderLevel=?, Unit=?, UnitPrice=?, " +
                       "IsMachinery=?, MachineStatus=?, ItemCondition=?, Location=?, SerialNumber=?, PurchaseDate=?, WarrantyExpiryDate=?, " +
                       (selectedImageFile != null ? "ItemImage=?, ItemImageType=?, " : "") +
@@ -628,18 +605,17 @@ public class ItemDetailsDialog extends JDialog {
                 if (categoryId != -1) pstmt.setInt(paramIndex++, categoryId); else pstmt.setNull(paramIndex++, Types.INTEGER);
 
                 if (isNewItem) {
-                    pstmt.setInt(paramIndex++, quantity); // Set quantity only for new items
+                    pstmt.setInt(paramIndex++, quantity);
                 }
                 pstmt.setInt(paramIndex++, reorderLevel);
                 pstmt.setString(paramIndex++, unit);
-                pstmt.setBigDecimal(paramIndex++, unitPrice); // Set UnitPrice
+                pstmt.setBigDecimal(paramIndex++, unitPrice);
 
                 pstmt.setBoolean(paramIndex++, isMachinery);
                 pstmt.setString(paramIndex++, machineStatus);
                 pstmt.setString(paramIndex++, itemCondition);
                 pstmt.setString(paramIndex++, location.isEmpty() ? null : location);
                 pstmt.setString(paramIndex++, serialNumber.isEmpty() ? null : serialNumber);
-                // Use getTime() method from the java.util.Date object
                 pstmt.setDate(paramIndex++, purchaseDateVal != null ? new java.sql.Date(purchaseDateVal.getTime()) : null);
                 pstmt.setDate(paramIndex++, warrantyExpiryDateVal != null ? new java.sql.Date(warrantyExpiryDateVal.getTime()) : null);
 
@@ -653,50 +629,40 @@ public class ItemDetailsDialog extends JDialog {
                         pstmt.setNull(paramIndex++, Types.VARCHAR);
                     }
                     pstmt.setInt(paramIndex++, currentUser.getUserId());
-                    pstmt.setBoolean(paramIndex++, false); // New items are not archived
+                    pstmt.setBoolean(paramIndex++, false);
                 } else {
                     if (selectedImageFile != null && selectedImageFile.exists()) {
                         fis = new FileInputStream(selectedImageFile);
                         pstmt.setBinaryStream(paramIndex++, fis, (int) selectedImageFile.length());
                         pstmt.setString(paramIndex++, selectedImageType);
                     }
-                    pstmt.setInt(paramIndex++, currentItemId); // Use the existing ID for update
+                    pstmt.setInt(paramIndex++, currentItemId);
                 }
 
                 int rowsAffected = pstmt.executeUpdate();
 
                 if (rowsAffected > 0) {
                     int savedItemId = currentItemId;
-                    if (isNewItem) { // This block is for a newly saved item
+                    if (isNewItem) {
                          try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                             if (generatedKeys.next()) {
                                 savedItemId = generatedKeys.getInt(1);
-                                // Update the dialog's currentItemId to the newly generated one
                                 this.currentItemId = savedItemId;
                                 itemIdField.setText(String.valueOf(savedItemId));
-                                // *** After a successful insert, the item is no longer 'new' ***
-                                isNewItem = false; // Update the flag
-                                setTitle("Edit Item Details"); // Change title after saving new item
-                                archiveButton.setVisible(true); // Show archive button now that it's an existing item
-                                restoreButton.setVisible(false); // Ensure restore button is hidden
-                                // setFieldsEditable(true); // Editable state is handled by loadItemDetails and setFieldsEditable
+                                isNewItem = false;
+                                setTitle("Edit Item Details");
+                                archiveButton.setVisible(true);
+                                restoreButton.setVisible(false);
                             } else {
-                                // Handle case where generated keys are not returned (shouldn't happen with AUTO_INCREMENT)
                                 System.err.println("Warning: Failed to retrieve generated key for new item.");
-                                // The dialog state might be slightly inconsistent if ID isn't updated
                             }
                          }
                          logDetails = "Item '" + itemName + "' (ID: " + savedItemId + ") added.";
-                         // Dialog closes automatically after adding a new item
                          dispose();
-                    } else { // This block is for an updated existing item
+                    } else {
                          savedItemId = Integer.parseInt(itemIdField.getText());
                          logDetails = "Item '" + itemName + "' (ID: " + savedItemId + ") updated.";
-                         // For an updated item, the editable state and button visibility
-                         // should already be correct based on its archived status,
-                         // which was set in loadItemDetails. No need to change them here.
-                         // Dialog closes automatically after updating an existing item
-                         dispose(); // Add dispose() here for updates
+                         dispose();
                     }
 
 
@@ -704,7 +670,7 @@ public class ItemDetailsDialog extends JDialog {
                     JOptionPane.showMessageDialog(this, successMessage, "Success", JOptionPane.INFORMATION_MESSAGE);
                     logActivity(logActivityType, logDetails);
                     if (listener != null) {
-                        listener.itemSavedOrArchived(); // Notify listener on save
+                        listener.itemSavedOrArchived();
                     }
                 } else {
                     conn.rollback();
@@ -715,14 +681,12 @@ public class ItemDetailsDialog extends JDialog {
         } catch (SQLException | IOException e) {
             try { if (conn != null) conn.rollback(); } catch (SQLException exRb) { System.err.println("Rollback failed: " + exRb.getMessage());}
             e.printStackTrace();
-            // Provide a more specific error message if possible, though the DB trigger error is handled externally
             String errorMsg = "Failed to save item: " + e.getMessage();
              if (e instanceof SQLException && ((SQLException)e).getSQLState() != null && ((SQLException)e).getSQLState().startsWith("23")) {
                  errorMsg += "\nThis might be caused by a database constraint violation (e.g., foreign key, unique constraint).";
              } else if (e instanceof SQLException && e.getMessage() != null && e.getMessage().contains("Cannot update table")) {
                   errorMsg += "\nThis is likely caused by a database trigger or stored procedure attempting to modify the same table.";
              }
-            // Added mention of UnitPrice column in the error message
             errorMsg += "\nEnsure your database schema includes the 'UnitPrice' column in the 'Items' table.";
             JOptionPane.showMessageDialog(this, errorMsg, "DB Error", JOptionPane.ERROR_MESSAGE);
         } finally {
@@ -734,7 +698,6 @@ public class ItemDetailsDialog extends JDialog {
     }
 
     private void archiveItem() {
-         // Check if it's an existing, non-archived item before allowing archive
          if (currentItemId == -1 || isNewItem || isArchived) {
             JOptionPane.showMessageDialog(this, "Cannot archive this item. It must be an existing, non-archived item.", "Error", JOptionPane.WARNING_MESSAGE);
             return;
@@ -755,22 +718,21 @@ public class ItemDetailsDialog extends JDialog {
             String sql = "UPDATE Items SET IsArchived = TRUE, UpdatedAt = NOW() WHERE ItemID = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, currentItemId);
-                int rowsAffected = pstmt.executeUpdate(); // Correctly get rows affected
-                if (rowsAffected > 0) { // Check against rowsAffected
-                    JOptionPane.showMessageDialog(this, "Item '" + itemName + "' archived successfully.", "Success", JOptionPane.INFORMATION_MESSAGE); // Correct success message
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    JOptionPane.showMessageDialog(this, "Item '" + itemName + "' archived successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
                     logActivity("Item Archived", "Item '" + itemName + "' (ID: " + currentItemId + ") archived by user " + (currentUser != null ? currentUser.getUsername() : "Unknown"));
-                    isArchived = true; // Update dialog state
-                    setFieldsEditable(false); // Make fields non-editable after archiving
+                    isArchived = true;
+                    setFieldsEditable(false);
                     saveButton.setVisible(false);
                     archiveButton.setVisible(false);
                     restoreButton.setVisible(true);
                     setTitle("View Archived Item Details");
 
                     if (listener != null) {
-                        listener.itemSavedOrArchived(); // Notify listener on archive
+                        listener.itemSavedOrArchived();
                     }
-                    // Close the dialog after archiving
-                    dispose(); // Add dispose() here for archive
+                    dispose();
                 } else {
                     JOptionPane.showMessageDialog(this, "Item not found or could not be archived.", "Error", JOptionPane.WARNING_MESSAGE);
                 }
@@ -782,7 +744,6 @@ public class ItemDetailsDialog extends JDialog {
     }
 
      private void restoreItem() {
-         // Check if it's an existing, archived item before allowing restore
          if (currentItemId == -1 || isNewItem || !isArchived) {
             JOptionPane.showMessageDialog(this, "Cannot restore this item. It must be an existing, archived item.", "Error", JOptionPane.WARNING_MESSAGE);
             return;
@@ -804,21 +765,20 @@ public class ItemDetailsDialog extends JDialog {
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setInt(1, currentItemId);
                 int rowsAffected = pstmt.executeUpdate();
-                if (rowsAffected > 0) { // Check against rowsAffected here as well
+                if (rowsAffected > 0) {
                     JOptionPane.showMessageDialog(this, "Item '" + itemName + "' restored successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
                     logActivity("Item Restored", "Item '" + itemName + "' (ID: " + currentItemId + ") restored by user " + (currentUser != null ? currentUser.getUsername() : "Unknown"));
-                    isArchived = false; // Update dialog state
-                    setFieldsEditable(true); // Make fields editable again after restoring
+                    isArchived = false;
+                    setFieldsEditable(true);
                     saveButton.setVisible(true);
                     archiveButton.setVisible(true);
                     restoreButton.setVisible(false);
                      setTitle("Edit Item Details");
 
                     if (listener != null) {
-                        listener.itemSavedOrArchived(); // Notify listener on restore
+                        listener.itemSavedOrArchived();
                     }
-                    // Close the dialog after restoring
-                    dispose(); // Add dispose() here for restore
+                    dispose();
                 } else {
                     JOptionPane.showMessageDialog(this, "Item not found or could not be restored.", "Error", JOptionPane.WARNING_MESSAGE);
                 }
@@ -849,8 +809,7 @@ public class ItemDetailsDialog extends JDialog {
     }
 
     private void browseImage() {
-        // Only allow Browse if the fields are editable (i.e., not an archived item being viewed)
-        if (!nameField.isEditable()) { // Use nameField editable state as a proxy
+        if (!nameField.isEditable()) {
              JOptionPane.showMessageDialog(this, "Cannot change image for an archived item.", "Action Blocked", JOptionPane.WARNING_MESSAGE);
              return;
         }
@@ -879,7 +838,6 @@ public class ItemDetailsDialog extends JDialog {
             ImageIcon originalIcon = new ImageIcon(imagePath);
             Image originalImage = originalIcon.getImage();
 
-            // Calculate scaled dimensions based on label size, with fallbacks
             int labelWidth = imageLabel.getWidth() > 0 ? imageLabel.getWidth() - 10 : 190;
             int labelHeight = imageLabel.getHeight() > 0 ? imageLabel.getHeight() - 10 : 140;
 
@@ -888,7 +846,7 @@ public class ItemDetailsDialog extends JDialog {
 
             Image scaledImage = originalImage.getScaledInstance(labelWidth, labelHeight, Image.SCALE_SMOOTH);
             imageLabel.setIcon(new ImageIcon(scaledImage));
-            imageLabel.setText(null); // Remove text when image is displayed
+            imageLabel.setText(null);
         } catch (Exception e) {
             imageLabel.setIcon(null);
             imageLabel.setText("Preview Error");
@@ -907,7 +865,7 @@ public class ItemDetailsDialog extends JDialog {
         quantityField.setText("");
         reorderLevelField.setText("");
         if (unitField.getItemCount() > 0) unitField.setSelectedIndex(0); else unitField.setSelectedItem("");
-        unitPriceField.setText("0.00"); // Clear UnitPrice field
+        unitPriceField.setText("0.00");
 
         isMachineryCheckBox.setSelected(false);
         machineStatusField.setSelectedItem("Not Applicable");
@@ -917,7 +875,7 @@ public class ItemDetailsDialog extends JDialog {
         purchaseDateField.setDate(null);
         warrantyExpiryDateField.setDate(null);
 
-        toggleMachineSpecificFields(false); // Reset machinery fields state
+        toggleMachineSpecificFields(false);
 
         imageLabel.setIcon(null);
         imageLabel.setText("No Image Selected");
@@ -927,15 +885,12 @@ public class ItemDetailsDialog extends JDialog {
     }
 
     private void setFieldsEditable(boolean editable) {
-        // Determine the actual editable state based on whether it's a new item or if 'editable' is true
-        // New items are always editable, existing items' editable state depends on the 'editable' parameter (which is based on archived status)
         boolean actualEditable = isNewItem ? true : editable;
 
         nameField.setEditable(actualEditable);
         descriptionArea.setEditable(actualEditable);
-        categoryField.setEnabled(actualEditable); // Use setEnabled for JComboBox
+        categoryField.setEnabled(actualEditable);
 
-        // Make quantity field non-editable for existing items
         quantityField.setEditable(isNewItem ? actualEditable : false);
         quantityField.setBackground(isNewItem && actualEditable ? new Color(50, 50, 50) : Color.DARK_GRAY);
         quantityField.setForeground(isNewItem && actualEditable ? Color.WHITE : Color.LIGHT_GRAY);
@@ -943,27 +898,25 @@ public class ItemDetailsDialog extends JDialog {
 
 
         reorderLevelField.setEditable(actualEditable);
-        unitField.setEditable(actualEditable); // JComboBox is editable, but the editor component needs to be enabled
-        // Enable/disable the editor component of the JComboBox if it's editable
+        unitField.setEditable(actualEditable);
         if (unitField.getEditor().getEditorComponent() instanceof JTextField) {
              ((JTextField)unitField.getEditor().getEditorComponent()).setEditable(actualEditable);
              ((JTextField)unitField.getEditor().getEditorComponent()).setBackground(actualEditable ? new Color(50, 50, 50) : Color.DARK_GRAY);
              ((JTextField)unitField.getEditor().getEditorComponent()).setForeground(actualEditable ? Color.WHITE : Color.LIGHT_GRAY);
              ((JTextField)unitField.getEditor().getEditorComponent()).setCaretColor(actualEditable ? Color.WHITE : Color.LIGHT_GRAY);
         }
-        unitPriceField.setEditable(actualEditable); // Set UnitPrice field editable state
+        unitPriceField.setEditable(actualEditable);
+        unitPriceField.setForeground(actualEditable ? Color.WHITE : Color.LIGHT_GRAY);
 
 
         isMachineryCheckBox.setEnabled(actualEditable);
-        // Machine status depends on both dialog editable state and checkbox being selected
         machineStatusField.setEnabled(actualEditable && isMachineryCheckBox.isSelected());
-        itemConditionField.setEnabled(actualEditable); // Use setEnabled for JComboBox
+        itemConditionField.setEnabled(actualEditable);
         locationField.setEditable(actualEditable);
         serialNumberField.setEditable(actualEditable);
-        purchaseDateField.setEnabled(actualEditable); // Use setEnabled for JDateChooser
-        warrantyExpiryDateField.setEnabled(actualEditable); // Use setEnabled for JDateChooser
+        purchaseDateField.setEnabled(actualEditable);
+        warrantyExpiryDateField.setEnabled(actualEditable);
 
-        // Image browse button should also be enabled/disabled based on actualEditable
         Component[] imagePanelComponents = ((JPanel)imageLabel.getParent()).getComponents();
         for (Component comp : imagePanelComponents) {
             if (comp instanceof JButton) {
@@ -971,7 +924,6 @@ public class ItemDetailsDialog extends JDialog {
             }
         }
 
-        // Adjust colors based on actualEditable for other fields
         Color editableBg = new Color(50, 50, 50);
         Color nonEditableBg = Color.DARK_GRAY;
         Color editableFg = Color.WHITE;
@@ -984,28 +936,25 @@ public class ItemDetailsDialog extends JDialog {
 
         reorderLevelField.setBackground(actualEditable ? editableBg : nonEditableBg);
         reorderLevelField.setForeground(actualEditable ? editableFg : nonEditableFg);
-        unitPriceField.setBackground(actualEditable ? editableBg : nonEditableBg); // Set UnitPrice color
-        unitPriceField.setForeground(actualEditable ? editableFg : nonEditableFg); // Set UnitPrice color
+        unitPriceField.setBackground(actualEditable ? editableBg : nonEditableBg);
+        unitPriceField.setForeground(actualEditable ? editableFg : nonEditableFg);
         locationField.setBackground(actualEditable ? editableBg : nonEditableBg);
         locationField.setForeground(actualEditable ? editableFg : nonEditableFg);
         serialNumberField.setBackground(actualEditable ? editableBg : nonEditableBg);
         serialNumberField.setForeground(actualEditable ? editableFg : nonEditableFg);
-
-         // The toggleMachineSpecificFields method is called separately based on the checkbox state,
-         // but its internal logic also respects the enabled state set here.
     }
 
 
     private boolean validateInput() {
         String name = nameField.getText().trim();
-        String quantityStr = quantityField.getText().trim(); // Still need quantity for new items
+        String quantityStr = quantityField.getText().trim();
         String reorderLevelStr = reorderLevelField.getText().trim();
         Object unitObj = unitField.getSelectedItem();
-        String unitPriceStr = unitPriceField.getText().trim(); // Get UnitPrice text
+        String unitPriceStr = unitPriceField.getText().trim();
 
         if (name.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Item Name cannot be empty.", "Input Error", JOptionPane.WARNING_MESSAGE);
-            nameField.requestFocusInWindow(); // Use requestFocusInWindow for dialogs
+            nameField.requestFocusInWindow();
             return false;
         }
         if (categoryField.getSelectedIndex() < 0 && categoryField.getItemCount() > 0) {
@@ -1017,7 +966,6 @@ public class ItemDetailsDialog extends JDialog {
             return false;
         }
 
-        // Only validate quantity for new items
         if (isNewItem) {
             if (quantityStr.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Quantity cannot be empty for a new item.", "Input Error", JOptionPane.WARNING_MESSAGE);
@@ -1045,7 +993,6 @@ public class ItemDetailsDialog extends JDialog {
             return false;
         }
 
-        // Validate Unit Price
         if (unitPriceStr.isEmpty()) {
              JOptionPane.showMessageDialog(this, "Unit Price cannot be empty.", "Input Error", JOptionPane.WARNING_MESSAGE);
              unitPriceField.requestFocusInWindow();
@@ -1066,12 +1013,12 @@ public class ItemDetailsDialog extends JDialog {
         }
 
 
-        if (reorderLevelField.isEnabled() && reorderLevelStr.isEmpty()) { // Only validate if enabled
+        if (reorderLevelField.isEnabled() && reorderLevelStr.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Reorder Level cannot be empty.", "Input Error", JOptionPane.WARNING_MESSAGE);
             reorderLevelField.requestFocusInWindow();
             return false;
         }
-        if (reorderLevelField.isEnabled()) { // Only validate format if enabled
+        if (reorderLevelField.isEnabled()) {
             try {
                 int reorderLevel = Integer.parseInt(reorderLevelStr);
                 if (reorderLevel < 0) {
@@ -1116,7 +1063,6 @@ public class ItemDetailsDialog extends JDialog {
         }
     }
 
-     
      @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

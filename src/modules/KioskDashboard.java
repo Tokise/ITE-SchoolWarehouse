@@ -20,8 +20,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -36,30 +34,38 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.ListSelectionModel; // Import for multiple selection
-import javax.swing.JCheckBox; // Import JCheckBox
-import javax.swing.table.JTableHeader; // Import JTableHeader
-import java.awt.event.ItemEvent; // Import ItemEvent
+import javax.swing.ListSelectionModel;
+import javax.swing.JCheckBox;
+import javax.swing.table.JTableHeader;
+import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import javax.swing.table.TableColumn; // Import TableColumn
-import javax.swing.table.TableColumnModel; // Import TableColumnModel
-import javax.swing.event.TableModelEvent; // Import TableModelEvent
-import javax.swing.event.TableModelListener; // Import TableModelListener
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.table.TableColumn;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
+import javax.swing.JTabbedPane;
+import javax.swing.UIManager; // Import UIManager
+import javax.swing.plaf.ColorUIResource; // Import ColorUIResource
 
 
-// Import the dialog for borrowing details and the new item details class
 import modules.BorrowItemDialog.BorrowCompleteListener;
 import modules.BorrowItemDialog.BorrowItemDetails;
 
 
-public class KioskDashboard extends javax.swing.JPanel implements BorrowCompleteListener { // Implement the listener interface
+public class KioskDashboard extends javax.swing.JPanel implements BorrowCompleteListener {
 
-    private JTable availableItemsTable;
+  
+
+    private JTable consumableItemsTable;
+    private DefaultTableModel consumableTableModel;
+    private JTable returnableItemsTable;
+    private DefaultTableModel returnableTableModel;
+
     private JTextField searchField;
-    private DefaultTableModel tableModel;
 
     private Connection conn = null;
-    private User currentUser; // The logged-in Kiosk user
+    private User currentUser;
 
     private int currentPage = 1;
     private final int itemsPerPage = 10;
@@ -68,56 +74,42 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
     private JButton jButtonNextPage;
     private JLabel jLabelPageInfo;
 
-    // SwingWorker for loading data
     private AvailableItemsLoader currentDataLoader;
 
-    // Checkbox for selecting all items
-    private JCheckBox selectAllCheckBox;
+    private JCheckBox selectAllCheckBoxConsumable;
+    private JCheckBox selectAllCheckBoxReturnable;
+
+    private JTabbedPane mainTabbedPane;
 
 
     public KioskDashboard() {
-        initComponents();
         setupKioskDashboardPanel();
         if (!connectToDatabase()) {
             JOptionPane.showMessageDialog(this, "Database connection failed. Kiosk features disabled.", "Connection Error", JOptionPane.ERROR_MESSAGE);
         } else {
-             // Initial load: fetch total count, which will then trigger data load
             fetchTotalAvailableItemCount();
         }
     }
 
     public void setCurrentUser(User user) {
         this.currentUser = user;
-        if (this.currentUser != null) {
-            System.out.println("KioskDashboard: User object set. UserID: " + this.currentUser.getUserId() + ", Username: " + this.currentUser.getUsername());
-        } else {
-            System.out.println("KioskDashboard: Current user is null.");
-        }
         currentPage = 1;
-        fetchTotalAvailableItemCount(); // Refresh data based on user (though Kiosk view is generic)
+        fetchTotalAvailableItemCount();
     }
 
-     // This method might be called from DashBoardFrame1
     public void setCurrentUserId(int userId) {
-         System.out.println("KioskDashboard: setCurrentUserId(int) called with UserID: " + userId);
         if (userId <= 0) {
-            System.err.println("KioskDashboard: Invalid UserID passed to setCurrentUserId: " + userId);
             setCurrentUser(null);
             return;
         }
 
-        // Fetch the full user object
         User user = fetchUserById(userId);
-        if (user == null) {
-            System.err.println("KioskDashboard: Failed to fetch user details for UserID: " + userId + ". Kiosk operations requiring a user may fail.");
-        }
         setCurrentUser(user);
     }
 
      private User fetchUserById(int userId) {
         if (conn == null) {
             if (!connectToDatabase()) {
-                 System.err.println("KioskDashboard.fetchUserById: Database connection is not available.");
                  return null;
             }
         }
@@ -132,13 +124,10 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
                     user.setFullName(rs.getString("FullName"));
                     user.setRole(rs.getString("Role"));
                     return user;
-                } else {
-                    System.err.println("KioskDashboard.fetchUserById: No user found with UserID: " + userId);
                 }
             }
         } catch (SQLException e) {
-            System.err.println("KioskDashboard.fetchUserById: SQL error fetching user with ID " + userId + ": " + e.getMessage());
-            e.printStackTrace();
+            Logger.getLogger(KioskDashboard.class.getName()).log(Level.SEVERE, "Error fetching user by ID", e);
         }
         return null;
     }
@@ -148,14 +137,12 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
         try {
             conn = DBConnection.getConnection();
             if (conn != null && !conn.isClosed()) {
-                System.out.println("Database connected successfully in KioskDashboard");
                 return true;
             } else {
-                System.err.println("Failed to establish database connection in KioskDashboard.");
                 return false;
             }
         } catch (SQLException ex) {
-            Logger.getLogger(KioskDashboard.class.getName()).log(Level.SEVERE, "Database connection error in KioskDashboard", ex);
+            Logger.getLogger(KioskDashboard.class.getName()).log(Level.SEVERE, "Error connecting to database", ex);
             return false;
         }
     }
@@ -168,31 +155,35 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setOpaque(false);
 
-
         JPanel searchPanel = createSearchPanel();
         topPanel.add(searchPanel, BorderLayout.SOUTH);
 
         this.add(topPanel, BorderLayout.NORTH);
 
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setOpaque(false);
+        mainTabbedPane = new JTabbedPane();
+        mainTabbedPane.setBackground(new Color(30, 30, 30));
+        mainTabbedPane.setForeground(new Color(220, 220, 220));
+        mainTabbedPane.setFont(new Font("Verdana", Font.BOLD, 14));
+        // Removed mainTabbedPane.setBorder(null) here as it's now handled by UIManager.put("TabbedPane.contentBorder", ...)
 
-        JPanel tablePanel = createAvailableItemsTablePanel();
-        centerPanel.add(tablePanel, BorderLayout.CENTER);
+        JPanel consumableItemsPanel = createItemsTablePanel("Consumable Items", true);
+        mainTabbedPane.addTab("Request Item(s)", consumableItemsPanel);
 
-        this.add(centerPanel, BorderLayout.CENTER);
+        JPanel returnableItemsPanel = createItemsTablePanel("Borrow Item(s)", false);
+        mainTabbedPane.addTab("Borrow Item(s)", returnableItemsPanel);
+
+        this.add(mainTabbedPane, BorderLayout.CENTER);
 
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
         bottomPanel.setOpaque(false);
 
-        JButton borrowButton = new JButton("Request Item(s)"); // Updated button text
-        styleActionButton(borrowButton, new Color(52, 152, 219)); // Blue for Borrow
+        JButton borrowButton = new JButton("Process Selected Item(s)");
+        // Changed borrow button color to green to match the reference image
+        styleActionButton(borrowButton, new Color(46, 204, 113));
         borrowButton.addActionListener((ActionEvent e) -> openBorrowItemDialog());
         bottomPanel.add(borrowButton);
 
         this.add(bottomPanel, BorderLayout.SOUTH);
-
-
     }
 
     private JPanel createSearchPanel() {
@@ -201,11 +192,14 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
 
         JLabel searchLabel = new JLabel("Search Available Items:");
         searchLabel.setFont(new Font("Verdana", Font.BOLD, 14));
-        searchLabel.setForeground(Color.WHITE);
+        searchLabel.setForeground(new Color(200, 200, 200));
         panel.add(searchLabel);
 
         searchField = new JTextField(25);
         searchField.setFont(new Font("Verdana", Font.PLAIN, 14));
+        searchField.setBackground(new Color(60, 60, 60));
+        searchField.setForeground(new Color(220, 220, 220));
+        searchField.setCaretColor(new Color(220, 220, 220));
         panel.add(searchField);
 
         JButton searchBtn = new JButton("Search");
@@ -218,122 +212,101 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
         return panel;
     }
 
-    private JPanel createAvailableItemsTablePanel() {
+    private JPanel createItemsTablePanel(String title, boolean isConsumableTab) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.GRAY),
-                "Available Items", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
+        panel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(30, 30, 30)),
+                title, javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                new Font("Verdana", Font.BOLD, 14), Color.WHITE));
+                new Font("Verdana", Font.BOLD, 14), new Color(30, 30, 30)));
 
-        // Add a new column for the checkbox at the beginning
-        String[] columns = {"Select", "ID", "Name", "Category", "Qty", "Unit", "Status", "Condition", "Location", "Image"};
-        tableModel = new DefaultTableModel(columns, 0) {
+        String[] columns = {"Select", "ID", "Name", "Category", "Type", "Qty", "Unit", "Status", "Condition", "Location", "Image"};
+        DefaultTableModel currentTableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                // Only the first column (checkbox) is editable
                 return column == 0;
             }
 
             @Override
             public Class<?> getColumnClass(int columnIndex) {
                  if (columnIndex == 0) {
-                    return Boolean.class; // Checkbox column
-                } else if (columnIndex == 9) { // Image column index is now 9
+                    return Boolean.class;
+                } else if (columnIndex == 10) {
                     return ImageIcon.class;
                 }
                 return super.getColumnClass(columnIndex);
             }
         };
 
-        availableItemsTable = new JTable(tableModel);
-        availableItemsTable.setForeground(Color.WHITE);
-        availableItemsTable.setBackground(new Color(30, 30, 30));
-        availableItemsTable.setGridColor(new Color(50, 50, 50));
-        availableItemsTable.setSelectionBackground(new Color(41, 128, 185));
-        availableItemsTable.setSelectionForeground(Color.WHITE);
-        availableItemsTable.setFont(new Font("Verdana", Font.PLAIN, 12));
-        availableItemsTable.setRowHeight(60);
-        availableItemsTable.setAutoCreateRowSorter(true); // Enable sorting
-        // Change selection mode to single selection as checkboxes handle multi-selection
-        availableItemsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JTable currentTable = new JTable(currentTableModel);
+        currentTable.setForeground(new Color(220, 220, 220));
+        currentTable.setBackground(new Color(30, 30, 30)); // Changed table background to match overall theme
+        currentTable.setGridColor(new Color(40, 40, 40)); // Keep this for internal grid lines
+        currentTable.setSelectionBackground(new Color(40, 40, 40));
+        currentTable.setSelectionForeground(new Color(255, 255, 255));
+        currentTable.setFont(new Font("Verdana", Font.PLAIN, 12));
+        currentTable.setRowHeight(60);
+        currentTable.setAutoCreateRowSorter(true);
+        currentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-
-        JTableHeader tableHeader = availableItemsTable.getTableHeader();
+        JTableHeader tableHeader = currentTable.getTableHeader();
         tableHeader.setFont(new Font("Verdana", Font.BOLD, 12));
-        tableHeader.setBackground(new Color(40, 40, 40));
-        tableHeader.setForeground(Color.WHITE);
+        tableHeader.setBackground(new Color(35, 35, 35)); // Changed table header background to be slightly lighter
+        tableHeader.setForeground(new Color(255, 255, 255));
         tableHeader.setReorderingAllowed(false);
 
-        // Add the global select all checkbox to the header of the first column
-        selectAllCheckBox = new JCheckBox();
-        selectAllCheckBox.setBackground(new Color(40, 40, 40));
-        selectAllCheckBox.setOpaque(false); // Make it transparent to see header background
-        selectAllCheckBox.setHorizontalAlignment(SwingConstants.CENTER);
-        // Remove the ItemListener here, we will handle clicks via MouseListener on the header
-        // selectAllCheckBox.addItemListener(e -> {
-        //     boolean isSelected = e.getStateChange() == ItemEvent.SELECTED;
-        //     // Update all checkboxes in the table model
-        //     for (int i = 0; i < tableModel.getRowCount(); i++) {
-        //         tableModel.setValueAt(isSelected, i, 0);
-        //     }
-        // });
+        JCheckBox currentSelectAllCheckBox = new JCheckBox();
+        currentSelectAllCheckBox.setBackground(new Color(35, 35, 35)); // Aligned with table header background
+        currentSelectAllCheckBox.setOpaque(false);
+        currentSelectAllCheckBox.setHorizontalAlignment(SwingConstants.CENTER);
 
-        // Set the custom header renderer for the first column to display the checkbox
-        TableColumn selectColumn = availableItemsTable.getColumnModel().getColumn(0);
+        TableColumn selectColumn = currentTable.getColumnModel().getColumn(0);
         selectColumn.setHeaderRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                // Use the selectAllCheckBox as the header component
-                return selectAllCheckBox;
+                return currentSelectAllCheckBox;
             }
         });
 
-        // Set renderer and editor for the checkbox column in the table body
-        selectColumn.setCellRenderer(availableItemsTable.getDefaultRenderer(Boolean.class));
-        selectColumn.setCellEditor(availableItemsTable.getDefaultEditor(Boolean.class));
+        selectColumn.setCellRenderer(currentTable.getDefaultRenderer(Boolean.class));
+        selectColumn.setCellEditor(currentTable.getDefaultEditor(Boolean.class));
 
-        // Add a MouseListener to the table header to handle clicks on the global checkbox
         tableHeader.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 int column = tableHeader.columnAtPoint(e.getPoint());
-                if (column == 0) { // Check if the click is on the first column header
-                    boolean newState = !selectAllCheckBox.isSelected();
-                    selectAllCheckBox.setSelected(newState);
-                    // Update all checkboxes in the table model
-                    for (int i = 0; i < tableModel.getRowCount(); i++) {
-                        tableModel.setValueAt(newState, i, 0);
+                if (column == 0) {
+                    boolean newState = !currentSelectAllCheckBox.isSelected();
+                    currentSelectAllCheckBox.setSelected(newState);
+                    for (int i = 0; i < currentTableModel.getRowCount(); i++) {
+                        currentTableModel.setValueAt(newState, i, 0);
                     }
                 }
             }
         });
 
-
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
 
-        // Apply center renderer to all columns except the checkbox and image columns
-        for (int i = 1; i < availableItemsTable.getColumnCount(); i++) { // Start from index 1 to skip checkbox column
-             if (i != 9) { // Apply center renderer to all columns except the image column (now index 9)
-                availableItemsTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        for (int i = 1; i < currentTable.getColumnCount(); i++) {
+             if (i != 10) {
+                currentTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
              }
         }
 
-         // Custom renderer for Status column to color text (now index 6)
-         availableItemsTable.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
+         currentTable.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 String status = value != null ? value.toString() : "";
                 if ("Low Stock".equalsIgnoreCase(status)) {
-                    c.setForeground(new Color(231, 76, 60)); // Red
+                    c.setForeground(new Color(231, 76, 60));
                 } else if ("Out of Stock".equalsIgnoreCase(status)) {
-                    c.setForeground(Color.ORANGE); // Orange
+                    c.setForeground(new Color(255, 165, 0));
                 } else if ("In Stock".equalsIgnoreCase(status)) {
-                    c.setForeground(new Color(46, 204, 113)); // Green
+                    c.setForeground(new Color(46, 204, 113));
                 } else {
-                    c.setForeground(isSelected ? table.getSelectionForeground() : Color.WHITE); // Default color
+                    c.setForeground(isSelected ? table.getSelectionForeground() : new Color(220, 220, 220));
                 }
                 c.setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
                 setHorizontalAlignment(JLabel.CENTER);
@@ -341,20 +314,17 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
             }
         });
 
-         // Custom renderer for Image column (now index 9)
-         availableItemsTable.getColumnModel().getColumn(9).setCellRenderer(new DefaultTableCellRenderer() {
+         currentTable.getColumnModel().getColumn(10).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                label.setText(""); // Clear any default text
+                label.setText("");
                 if (value instanceof ImageIcon) {
-                    // Use the ImageIcon directly from the cell value
                     ImageIcon originalIcon = (ImageIcon) value;
-                    // Scale image for table display
-                    Image scaledImage = originalIcon.getImage().getScaledInstance(-1, 50, Image.SCALE_SMOOTH); // Scale height to 50px, maintain aspect ratio
-                    label.setIcon(new ImageIcon(scaledImage));
+                    Image scaled = originalIcon.getImage().getScaledInstance(-1, 50, Image.SCALE_SMOOTH);
+                    label.setIcon(new ImageIcon(scaled));
                 } else {
-                    label.setIcon(null); // No image available
+                    label.setIcon(null);
                 }
                 label.setHorizontalAlignment(JLabel.CENTER);
                 label.setVerticalAlignment(JLabel.CENTER);
@@ -363,51 +333,61 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
             }
         });
 
+        currentTable.getColumnModel().getColumn(0).setPreferredWidth(30);
+        currentTable.getColumnModel().getColumn(1).setPreferredWidth(40);
+        currentTable.getColumnModel().getColumn(2).setPreferredWidth(150);
+        currentTable.getColumnModel().getColumn(3).setPreferredWidth(100);
+        currentTable.getColumnModel().getColumn(4).setPreferredWidth(100);
+        currentTable.getColumnModel().getColumn(5).setPreferredWidth(50);
+        currentTable.getColumnModel().getColumn(6).setPreferredWidth(60);
+        currentTable.getColumnModel().getColumn(7).setPreferredWidth(80);
+        currentTable.getColumnModel().getColumn(8).setPreferredWidth(90);
+        currentTable.getColumnModel().getColumn(9).setPreferredWidth(100);
+        currentTable.getColumnModel().getColumn(10).setPreferredWidth(70);
 
-        // Set preferred column widths (adjusting for the new checkbox column)
-        availableItemsTable.getColumnModel().getColumn(0).setPreferredWidth(30); // Select checkbox
-        availableItemsTable.getColumnModel().getColumn(1).setPreferredWidth(40); // ID (now index 1)
-        availableItemsTable.getColumnModel().getColumn(2).setPreferredWidth(150); // Name (now index 2)
-        availableItemsTable.getColumnModel().getColumn(3).setPreferredWidth(100); // Category (now index 3)
-        availableItemsTable.getColumnModel().getColumn(4).setPreferredWidth(50);  // Qty (now index 4)
-        availableItemsTable.getColumnModel().getColumn(5).setPreferredWidth(60);  // Unit (now index 5)
-        availableItemsTable.getColumnModel().getColumn(6).setPreferredWidth(80);  // Status (now index 6)
-        availableItemsTable.getColumnModel().getColumn(7).setPreferredWidth(90);  // Condition (now index 7)
-        availableItemsTable.getColumnModel().getColumn(8).setPreferredWidth(100); // Location (now index 8)
-        availableItemsTable.getColumnModel().getColumn(9).setPreferredWidth(70);  // Image (now index 9)
-
-        // Add a listener to the table model to update the selectAllCheckBox state
-        tableModel.addTableModelListener(new TableModelListener() {
+        currentTableModel.addTableModelListener(new TableModelListener() {
             @Override
             public void tableChanged(TableModelEvent e) {
-                if (e.getColumn() == 0 || e.getColumn() == TableModelEvent.ALL_COLUMNS) { // Checkbox column or any change
-                    updateSelectAllCheckBox();
+                if (e.getColumn() == 0 || e.getColumn() == TableModelEvent.ALL_COLUMNS) {
+                    updateSelectAllCheckBox(currentTableModel, currentSelectAllCheckBox);
                 }
             }
         });
 
-
-        JScrollPane scrollPane = new JScrollPane(availableItemsTable);
+        JScrollPane scrollPane = new JScrollPane(currentTable);
         scrollPane.getViewport().setBackground(new Color(30, 30, 30));
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(30, 30, 30)));
         panel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel paginationPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         paginationPanel.setOpaque(false);
         jButtonPreviousPage = new JButton("Previous");
-        stylePaginationButton(jButtonPreviousPage);
+        // Changed pagination button color to blue to match the reference image
+        stylePaginationButton(jButtonPreviousPage, new Color(52, 152, 219));
         jButtonPreviousPage.addActionListener(e -> gotoPreviousPage());
         paginationPanel.add(jButtonPreviousPage);
 
         jLabelPageInfo = new JLabel("Page 1 of 1");
         jLabelPageInfo.setFont(new Font("Verdana", Font.PLAIN, 12));
-        jLabelPageInfo.setForeground(Color.WHITE);
+        jLabelPageInfo.setForeground(new Color(30, 30, 30));
         paginationPanel.add(jLabelPageInfo);
 
         jButtonNextPage = new JButton("Next");
-        stylePaginationButton(jButtonNextPage);
+        // Changed pagination button color to blue to match the reference image
+        stylePaginationButton(jButtonNextPage, new Color(52, 152, 219));
         jButtonNextPage.addActionListener(e -> gotoNextPage());
         paginationPanel.add(jButtonNextPage);
         panel.add(paginationPanel, BorderLayout.SOUTH);
+
+        if (isConsumableTab) {
+            consumableItemsTable = currentTable;
+            consumableTableModel = currentTableModel;
+            selectAllCheckBoxConsumable = currentSelectAllCheckBox;
+        } else {
+            returnableItemsTable = currentTable;
+            returnableTableModel = currentTableModel;
+            selectAllCheckBoxReturnable = currentSelectAllCheckBox;
+        }
 
         return panel;
     }
@@ -424,13 +404,13 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
         ));
     }
 
-     private void stylePaginationButton(JButton button) {
+     private void stylePaginationButton(JButton button, Color bgColor) { // Added bgColor parameter
         button.setFont(new Font("Verdana", Font.PLAIN, 12));
-        button.setBackground(new Color(70, 70, 70));
+        button.setBackground(bgColor); // Use bgColor
         button.setForeground(Color.WHITE);
          button.setFocusPainted(false);
         button.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.GRAY, 1), BorderFactory.createEmptyBorder(3, 8, 3, 8)));
+                BorderFactory.createLineBorder(bgColor.darker(), 1), BorderFactory.createEmptyBorder(3, 8, 3, 8)));
     }
 
 
@@ -438,13 +418,12 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
         if (conn == null) return;
         String searchText = searchField.getText().trim().toLowerCase();
 
-        // Query to count items that are not archived and have quantity > 0
         StringBuilder sqlBuilder = new StringBuilder("SELECT COUNT(*) AS total FROM Items i");
-
+        sqlBuilder.append(" LEFT JOIN Categories cat ON i.CategoryID = cat.CategoryID");
         sqlBuilder.append(" WHERE i.IsArchived = FALSE AND i.Quantity > 0");
 
         if (!searchText.isEmpty()) {
-            sqlBuilder.append(" AND (LOWER(i.ItemName) LIKE ? OR LOWER(i.Description) LIKE ? OR LOWER(i.SerialNumber) LIKE ?)");
+            sqlBuilder.append(" AND (LOWER(i.ItemName) LIKE ? OR LOWER(i.Description) LIKE ? OR LOWER(i.SerialNumber) LIKE ? OR LOWER(cat.CategoryName) LIKE ?)");
         }
 
         final String sql = sqlBuilder.toString();
@@ -460,6 +439,7 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
                         pstmt.setString(paramIndex++, searchTerm);
                         pstmt.setString(paramIndex++, searchTerm);
                         pstmt.setString(paramIndex++, searchTerm);
+                        pstmt.setString(paramIndex++, searchTerm);
                     }
                     try (ResultSet rs = pstmt.executeQuery()) {
                         if (rs.next()) {
@@ -467,7 +447,7 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
                         }
                     }
                 } catch (SQLException e) {
-                    System.err.println("Error fetching total available item count: " + e.getMessage());
+                    Logger.getLogger(KioskDashboard.class.getName()).log(Level.SEVERE, "Error fetching total item count", e);
                 }
                 return count;
             }
@@ -477,32 +457,29 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
                 try {
                     totalAvailableItems = get();
                     int totalPages = (int) Math.ceil((double) totalAvailableItems / itemsPerPage);
-                    totalPages = Math.max(totalPages, 1); // Ensure at least 1 page if totalItems > 0
+                    totalPages = Math.max(totalPages, 1);
                     if (currentPage > totalPages) {
                         currentPage = totalPages;
                     }
                     updatePaginationControls();
-                    // After fetching total count and updating pagination, refresh the table data
                     refreshTableData();
                 } catch (Exception e) {
-                    e.printStackTrace();
                     JOptionPane.showMessageDialog(KioskDashboard.this, "Error updating available item count: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
         }.execute();
     }
 
-    // New method to initiate table data loading
     private void refreshTableData() {
          if (conn == null) {
-            System.err.println("Cannot refresh table data: DB connection is null.");
-            SwingUtilities.invokeLater(() -> tableModel.setRowCount(0));
+            SwingUtilities.invokeLater(() -> {
+                consumableTableModel.setRowCount(0);
+                returnableTableModel.setRowCount(0);
+            });
             return;
         }
 
-        // Cancel any previous data loading task
         if (currentDataLoader != null && !currentDataLoader.isDone()) {
-             System.out.println("Cancelling previous data loader task."); // Debug print
             currentDataLoader.cancel(true);
         }
 
@@ -511,16 +488,15 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
 
         StringBuilder sqlBuilder = new StringBuilder(
             "SELECT i.ItemID, i.ItemName, c.CategoryName, i.Quantity, i.Unit, i.Status, " +
-            "i.ItemCondition, i.Location, i.ItemImage, i.IsMachinery " + // Fetch IsMachinery
+            "i.ItemCondition, i.Location, i.ItemImage, NOT i.IsMachinery AS IsConsumable " +
             "FROM Items i " +
             "LEFT JOIN Categories c ON i.CategoryID = c.CategoryID"
         );
 
-        // Only fetch items that are not archived and have quantity > 0
         sqlBuilder.append(" WHERE i.IsArchived = FALSE AND i.Quantity > 0");
 
         if (!searchText.isEmpty()) {
-            sqlBuilder.append(" AND (LOWER(i.ItemName) LIKE ? OR LOWER(i.Description) LIKE ? OR LOWER(i.SerialNumber) LIKE ?)");
+            sqlBuilder.append(" AND (LOWER(i.ItemName) LIKE ? OR LOWER(i.Description) LIKE ? OR LOWER(i.SerialNumber) LIKE ? OR LOWER(c.CategoryName) LIKE ?)");
         }
         sqlBuilder.append(" ORDER BY i.ItemID DESC LIMIT ? OFFSET ?");
 
@@ -542,24 +518,21 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
             this.searchText = searchText;
             this.offset = offset;
             this.limit = limit;
-             System.out.println("AvailableItemsLoader created for page " + (offset / limit + 1)); // Debug print
-            // Clear the table model on the Event Dispatch Thread (EDT)
-            // before loading new data to prevent duplication when changing pages or searching.
             SwingUtilities.invokeLater(() -> {
-                 System.out.println("Clearing table model on EDT before loading page " + (offset / limit + 1)); // Debug print
-                 tableModel.setRowCount(0); // Clear table on EDT
-                 // Reset the select all checkbox when the table is cleared
-                 updateSelectAllCheckBox();
+                 consumableTableModel.setRowCount(0);
+                 returnableTableModel.setRowCount(0);
+                 updateSelectAllCheckBox(consumableTableModel, selectAllCheckBoxConsumable);
+                 updateSelectAllCheckBox(returnableTableModel, selectAllCheckBoxReturnable);
             });
         }
 
         @Override
         protected Void doInBackground() throws Exception {
-             System.out.println("AvailableItemsLoader doInBackground started for page " + (offset / limit + 1)); // Debug print
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 int paramIndex = 1;
                 if (!searchText.isEmpty()) {
                     String searchTerm = "%" + searchText + "%";
+                    pstmt.setString(paramIndex++, searchTerm);
                     pstmt.setString(paramIndex++, searchTerm);
                     pstmt.setString(paramIndex++, searchTerm);
                     pstmt.setString(paramIndex++, searchTerm);
@@ -569,85 +542,78 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
 
                 try (ResultSet rs = pstmt.executeQuery()) {
                     while (rs.next()) {
-                        // Check if the task has been cancelled
                         if (isCancelled()) {
-                            System.out.println("AvailableItemsLoader task cancelled.");
                             break;
                         }
                         ImageIcon thumb = null;
-                        byte[] imgData = rs.getBytes("ItemImage"); // imgData is local to doInBackground
+                        byte[] imgData = rs.getBytes("ItemImage");
                         if (imgData != null && imgData.length > 0) {
                             try {
                                 ImageIcon orig = new ImageIcon(imgData);
-                                // Use SCALE_SMOOTH for better table image quality
                                 Image scaled = orig.getImage().getScaledInstance(-1, 50, Image.SCALE_SMOOTH);
                                 thumb = new ImageIcon(scaled);
                             } catch (Exception ix) {
-                                System.err.println("Error scaling image for table: " + ix.getMessage());
+                                Logger.getLogger(KioskDashboard.class.getName()).log(Level.WARNING, "Error scaling image for item ID: " + rs.getInt("ItemID"), ix);
                             }
                         }
-                        // Fetch IsMachinery status
-                        boolean isMachinery = rs.getBoolean("IsMachinery");
+                        boolean isConsumable = rs.getBoolean("IsConsumable");
 
-                        // Publish the data including the checkbox state (initially false)
                         publish(new Object[]{
-                            false, // Checkbox state (initially not selected)
+                            false,
                             rs.getInt("ItemID"),
                             rs.getString("ItemName"),
                             rs.getString("CategoryName"),
+                            isConsumable ? "Consumable" : "Machinery/Furniture",
                             rs.getInt("Quantity"),
                             rs.getString("Unit"),
                             rs.getString("Status"),
                             rs.getString("ItemCondition"),
                             rs.getString("Location"),
-                            thumb, // Publish the ImageIcon
-                            isMachinery // Include IsMachinery in the published data
+                            thumb,
+                            isConsumable
                         });
                     }
                 }
             } catch (SQLException e) {
-                System.err.println("Error in AvailableItemsLoader: " + e.getMessage());
                  SwingUtilities.invokeLater(() ->
                     JOptionPane.showMessageDialog(KioskDashboard.this, "Error loading available item data: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE)
                 );
+                Logger.getLogger(KioskDashboard.class.getName()).log(Level.SEVERE, "SQL Error loading available items", e);
             }
             return null;
         }
 
         @Override
         protected void process(java.util.List<Object[]> chunks) {
-             System.out.println("AvailableItemsLoader process called with chunk size: " + chunks.size()); // Debug print
-            // Only add rows if the task is not cancelled
             if (!isCancelled()) {
-                for (Object[] rowData : chunks) {
-                    // Add row, excluding the IsMachinery boolean which is for internal use
-                    Object[] displayRowData = new Object[rowData.length - 1];
-                    System.arraycopy(rowData, 0, displayRowData, 0, rowData.length - 1);
-                    tableModel.addRow(displayRowData);
+                for (Object[] rowDataWithHidden : chunks) {
+                    boolean isConsumable = (boolean) rowDataWithHidden[rowDataWithHidden.length - 1];
+                    Object[] displayRowData = new Object[rowDataWithHidden.length - 1];
+                    System.arraycopy(rowDataWithHidden, 0, displayRowData, 0, displayRowData.length);
+                    
+                    if (isConsumable) {
+                        consumableTableModel.addRow(displayRowData);
+                    } else {
+                        returnableTableModel.addRow(displayRowData);
+                    }
                 }
-            } else {
-                 System.out.println("AvailableItemsLoader process skipping adding rows due to cancellation.");
             }
         }
          @Override
         protected void done() {
-             System.out.println("AvailableItemsLoader done called. Is cancelled: " + isCancelled()); // Debug print
             try {
-                // Check if the task was cancelled before processing results
                 if (!isCancelled()) {
-                    get(); // Check for exceptions from doInBackground
+                    get();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
-                // Only show error dialog if the task was not cancelled
                 if (!isCancelled()) {
                      JOptionPane.showMessageDialog(KioskDashboard.this, "Failed to complete available items loading: " + e.getMessage(), "Loading Error", JOptionPane.ERROR_MESSAGE);
                 }
+                Logger.getLogger(KioskDashboard.class.getName()).log(Level.SEVERE, "Error in AvailableItemsLoader done()", e);
             } finally {
-                 // Ensure currentDataLoader is set to null on completion or cancellation
                  currentDataLoader = null;
-                 // Update the select all checkbox state after loading is complete
-                 updateSelectAllCheckBox();
+                 updateSelectAllCheckBox(consumableTableModel, selectAllCheckBoxConsumable);
+                 updateSelectAllCheckBox(returnableTableModel, selectAllCheckBoxReturnable);
             }
         }
     }
@@ -655,12 +621,12 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
 
     private void searchAvailableItems() {
         currentPage = 1;
-        fetchTotalAvailableItemCount(); // Fetch total count for new search, which triggers refreshTableData
+        fetchTotalAvailableItemCount();
     }
 
     private void updatePaginationControls() {
         int totalPages = (int) Math.ceil((double) totalAvailableItems / itemsPerPage);
-        totalPages = Math.max(totalPages, 1); // Ensure at least 1 page if totalItems > 0
+        totalPages = Math.max(totalPages, 1);
         jLabelPageInfo.setText("Page " + currentPage + " of " + totalPages);
         jButtonPreviousPage.setEnabled(currentPage > 1);
         jButtonNextPage.setEnabled(currentPage < totalPages);
@@ -669,31 +635,27 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
         }
     }
 
-    // Method to update the state of the selectAllCheckBox
-    private void updateSelectAllCheckBox() {
+    private void updateSelectAllCheckBox(DefaultTableModel model, JCheckBox checkBox) {
         boolean allSelected = true;
-        if (tableModel.getRowCount() == 0) {
-            allSelected = false; // No rows, so not all are selected
+        if (model.getRowCount() == 0) {
+            allSelected = false;
         } else {
-            for (int i = 0; i < tableModel.getRowCount(); i++) {
-                // Check the state of the checkbox in the first column
-                if (tableModel.getValueAt(i, 0) instanceof Boolean && !(Boolean) tableModel.getValueAt(i, 0)) {
+            for (int i = 0; i < model.getRowCount(); i++) {
+                if (model.getValueAt(i, 0) instanceof Boolean && !(Boolean) model.getValueAt(i, 0)) {
                     allSelected = false;
                     break;
                 }
             }
         }
-        // Temporarily remove listener to prevent infinite loop when setting the state
-        ItemListener[] listeners = selectAllCheckBox.getItemListeners();
+        ItemListener[] listeners = checkBox.getItemListeners();
         for (ItemListener listener : listeners) {
-            selectAllCheckBox.removeItemListener(listener);
+            checkBox.removeItemListener(listener);
         }
 
-        selectAllCheckBox.setSelected(allSelected);
+        checkBox.setSelected(allSelected);
 
-        // Re-add the listener
         for (ItemListener listener : listeners) {
-            selectAllCheckBox.addItemListener(listener);
+            checkBox.addItemListener(listener);
         }
     }
 
@@ -701,8 +663,8 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
     private void gotoPreviousPage() {
         if (currentPage > 1) {
             currentPage--;
-            refreshTableData(); // Refresh data for the new page
-            updatePaginationControls(); // Update controls based on new page
+            refreshTableData();
+            updatePaginationControls();
         }
     }
 
@@ -711,47 +673,61 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
          totalPages = Math.max(totalPages, 1);
         if (currentPage < totalPages) {
             currentPage++;
-            refreshTableData(); // Refresh data for the new page
-            updatePaginationControls(); // Update controls based on new page
+            refreshTableData();
+            updatePaginationControls();
         }
     }
 
-    // Method to open the BorrowItemDialog for multiple items
     private void openBorrowItemDialog() {
          List<BorrowItemDetails> itemsToBorrow = new ArrayList<>();
+         DefaultTableModel activeTableModel = null;
 
-        // Iterate through the table model to find selected items (where checkbox is checked)
-        for (int i = 0; i < tableModel.getRowCount(); i++) {
-            // Check if the checkbox in the first column is selected
-            if (tableModel.getValueAt(i, 0) instanceof Boolean && (Boolean) tableModel.getValueAt(i, 0)) {
-                 Object itemIdObj = tableModel.getValueAt(i, 1); // Item ID is now in column 1
-                 Object itemNameObj = tableModel.getValueAt(i, 2); // Item Name is now in column 2
+         int selectedTabIndex = mainTabbedPane.getSelectedIndex();
+         if (selectedTabIndex == 0) {
+             activeTableModel = consumableTableModel;
+         } else if (selectedTabIndex == 1) {
+             activeTableModel = returnableTableModel;
+         }
+
+         if (activeTableModel == null) {
+             JOptionPane.showMessageDialog(this, "No active item table found.", "Error", JOptionPane.ERROR_MESSAGE);
+             return;
+         }
+
+        for (int i = 0; i < activeTableModel.getRowCount(); i++) {
+            if (activeTableModel.getValueAt(i, 0) instanceof Boolean && (Boolean) activeTableModel.getValueAt(i, 0)) {
+                 Object itemIdObj = activeTableModel.getValueAt(i, 1);
+                 Object itemNameObj = activeTableModel.getValueAt(i, 2);
+                 Object itemCategoryObj = activeTableModel.getValueAt(i, 3);
+                 String itemTypeStr = activeTableModel.getValueAt(i, 4).toString();
+
 
                  if (itemIdObj != null && itemNameObj != null) {
                       try {
                          int itemId = Integer.parseInt(itemIdObj.toString());
                          String itemName = itemNameObj.toString();
+                         String itemCategory = itemCategoryObj != null ? itemCategoryObj.toString() : "Unknown";
+                         boolean isConsumable = "Consumable".equalsIgnoreCase(itemTypeStr);
 
-                         // Fetch latest quantity and IsMachinery status from DB
+
                          ItemDetailsForBorrow itemDetails = fetchItemDetailsForBorrow(itemId);
 
                          if (itemDetails != null && itemDetails.getQuantity() > 0) {
                               itemsToBorrow.add(new BorrowItemDetails(
                                   itemId,
                                   itemName,
-                                  itemDetails.getQuantity(), // Available quantity
-                                  itemDetails.isMachinery()
+                                  itemDetails.getQuantity(),
+                                  isConsumable, 
+                                  itemCategory
                               ));
                          } else {
-                              // Inform the user if a selected item is no longer available
-                              JOptionPane.showMessageDialog(this, "Selected item '" + itemName + "' is no longer available.", "Item Unavailable", JOptionPane.WARNING_MESSAGE);
-                              // Optionally, uncheck the checkbox for the unavailable item
-                              tableModel.setValueAt(false, i, 0);
+                              JOptionPane.showMessageDialog(this, "Selected item '" + itemName + "' is no longer available or details missing.", "Item Unavailable", JOptionPane.WARNING_MESSAGE);
+                              activeTableModel.setValueAt(false, i, 0);
                          }
 
                       } catch (NumberFormatException e) {
-                          System.err.println("Error parsing Item ID from table: " + itemIdObj);
                           JOptionPane.showMessageDialog(this, "Error reading selected item data.", "Data Error", JOptionPane.ERROR_MESSAGE);
+                          Logger.getLogger(KioskDashboard.class.getName()).log(Level.SEVERE, "NumberFormatException in openBorrowItemDialog", e);
                       }
                  }
             }
@@ -759,91 +735,67 @@ public class KioskDashboard extends javax.swing.JPanel implements BorrowComplete
 
 
         if (itemsToBorrow.isEmpty()) {
-             // If after filtering, no items are left to borrow
-             JOptionPane.showMessageDialog(this, "Please select one or more available items to request.", "No Available Items", JOptionPane.WARNING_MESSAGE);
-             // Refresh the list as some items might have become unavailable
-             fetchTotalAvailableItemCount();
+             JOptionPane.showMessageDialog(this, "Please select one or more available items to process.", "No Items Selected", JOptionPane.WARNING_MESSAGE);
              return;
         }
 
 
-        // Open the BorrowItemDialog with the list of selected items
         BorrowItemDialog dialog;
         dialog = new BorrowItemDialog(
                 (Frame) SwingUtilities.getWindowAncestor(this),
-                true, // modal
+                true,
                 conn,
                 currentUser,
-                itemsToBorrow, // Pass the list of items
-                this // Pass this KioskDashboard as the listener
+                itemsToBorrow,
+                this
         );
         dialog.setVisible(true);
-
-        // After the dialog is closed (either by borrowing or cancelling),
-        // the onBorrowComplete method (implemented from BorrowCompleteListener)
-        // will be called to refresh the list.
     }
 
-    // New method to fetch quantity and IsMachinery status
     private ItemDetailsForBorrow fetchItemDetailsForBorrow(int itemId) {
          if (conn == null) {
-             System.err.println("Cannot fetch item details for borrow: DB connection is null.");
              return null;
          }
-         // Assuming 'IsMachinery' is a BOOLEAN column in your Items table
-         String sql = "SELECT Quantity, IsMachinery FROM Items WHERE ItemID = ? AND IsArchived = FALSE";
+         String sql = "SELECT Quantity, NOT IsMachinery AS IsConsumable FROM Items WHERE ItemID = ? AND IsArchived = FALSE";
          try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
              pstmt.setInt(1, itemId);
              try (ResultSet rs = pstmt.executeQuery()) {
                  if (rs.next()) {
                      int quantity = rs.getInt("Quantity");
-                     boolean isMachinery = rs.getBoolean("IsMachinery");
-                     return new ItemDetailsForBorrow(quantity, isMachinery);
+                     boolean isConsumable = rs.getBoolean("IsConsumable");
+                     return new ItemDetailsForBorrow(quantity, isConsumable);
                  }
              }
          } catch (SQLException e) {
-             System.err.println("Error fetching item details for ItemID " + itemId + ": " + e.getMessage());
-             e.printStackTrace();
+             Logger.getLogger(KioskDashboard.class.getName()).log(Level.SEVERE, "Error fetching item details for borrow", e);
          }
-         return null; // Return null if item not found or error occurs
+         return null;
     }
 
-    // Helper class to return multiple values from fetchItemDetailsForBorrow
     private static class ItemDetailsForBorrow {
         private final int quantity;
-        private final boolean isMachinery;
-
-        // Default constructor added
-        public ItemDetailsForBorrow() {
-             this.quantity = 0; // Default quantity
-             this.isMachinery = false; // Default isMachinery
-        }
+        private final boolean isConsumable;
 
 
-        public ItemDetailsForBorrow(int quantity, boolean isMachinery) {
+        public ItemDetailsForBorrow(int quantity, boolean isConsumable) {
             this.quantity = quantity;
-            this.isMachinery = isMachinery;
+            this.isConsumable = isConsumable;
         }
 
         public int getQuantity() {
             return quantity;
         }
 
-        public boolean isMachinery() {
-            return isMachinery;
+        public boolean isConsumable() {
+            return isConsumable;
         }
     }
 
 
     public void onBorrowComplete() {
-        // This method is called by BorrowItemDialog after a successful borrow transaction
-        System.out.println("Request operation completed. Refreshing Kiosk Dashboard.");
-        // No need to reset single selected item fields anymore
-        // selectedItemId = -1;
-        // selectedItemName = null;
-        fetchTotalAvailableItemCount(); // Refresh the list of available items
+        fetchTotalAvailableItemCount();
     }
-    
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

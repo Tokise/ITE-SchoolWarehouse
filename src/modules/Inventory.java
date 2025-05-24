@@ -35,18 +35,17 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
-import java.math.BigDecimal; // Import BigDecimal for UnitPrice
+import java.math.BigDecimal;
 
-// Import the new dialog class and its listener interface
 import modules.ItemDetailsDialog.ItemDetailsListener;
 
 
-public class Inventory extends javax.swing.JPanel implements ItemDetailsListener { // Implement the listener interface
+public class Inventory extends javax.swing.JPanel implements ItemDetailsListener {
 
     private JTable inventoryTable;
     private JTextField searchField;
     private JComboBox<String> categoryFilter;
-    private JComboBox<String> viewFilter; // New: for Active/Archived items
+    private JComboBox<String> viewFilter;
     private DefaultTableModel tableModel;
 
     private Connection conn = null;
@@ -61,7 +60,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
 
     private JButton jButtonAddCategory;
 
-    // SwingWorker for loading data - Keep track of the current loading task
     private InventoryLoader currentDataLoader;
 
 
@@ -72,7 +70,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             JOptionPane.showMessageDialog(this, "Database connection failed. Inventory features disabled.", "Connection Error", JOptionPane.ERROR_MESSAGE);
         } else {
             loadCategories();
-            // Initial load: fetch total count, which will then trigger data load
             fetchTotalItemCount();
         }
     }
@@ -85,7 +82,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             System.out.println("Inventory: Current user is null.");
         }
         currentPage = 1;
-        fetchTotalItemCount(); // Refresh data based on user (though Inventory view is generic)
+        fetchTotalItemCount();
     }
 
     public void setCurrentUserId(int userId) {
@@ -157,13 +154,13 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         JPanel searchFilterPanel = createSearchFilterPanel();
         this.add(searchFilterPanel, BorderLayout.NORTH);
 
-        JPanel centerPanel = new JPanel(new BorderLayout()); // Use BorderLayout for center
+        JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setOpaque(false);
 
         JPanel tablePanel = createInventoryTablePanel();
-        centerPanel.add(tablePanel, BorderLayout.CENTER); // Table panel takes center
+        centerPanel.add(tablePanel, BorderLayout.CENTER);
 
-        this.add(centerPanel, BorderLayout.CENTER); // Center panel takes center of main panel
+        this.add(centerPanel, BorderLayout.CENTER);
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setOpaque(false);
@@ -176,7 +173,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         addCategoryPanel.add(jButtonAddCategory);
         bottomPanel.add(addCategoryPanel, BorderLayout.WEST);
 
-        JPanel actionPanel = createActionPanel(); // Action buttons remain at the bottom
+        JPanel actionPanel = createActionPanel();
         bottomPanel.add(actionPanel, BorderLayout.EAST);
 
         this.add(bottomPanel, BorderLayout.SOUTH);
@@ -191,7 +188,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
                     if (itemIdObj != null) {
                         try {
                             int itemId = Integer.parseInt(itemIdObj.toString());
-                            openItemDetailsDialog(itemId); // Open dialog for selected item
+                            openItemDetailsDialog(itemId);
                         } catch (NumberFormatException e) {
                             System.err.println("Error parsing Item ID from table: " + itemIdObj);
                             JOptionPane.showMessageDialog(Inventory.this, "Invalid Item ID in table.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -225,18 +222,11 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         categoryFilter.setFont(new Font("Verdana", Font.PLAIN, 14));
         panel.add(categoryFilter);
         
-        // New: Add View Filter for Active/Archived items
-        JLabel viewLabel = new JLabel("View:");
-        viewLabel.setFont(new Font("Verdana", Font.BOLD, 14));
-        viewLabel.setForeground(Color.WHITE);
-        panel.add(viewLabel);
-
         viewFilter = new JComboBox<>();
         viewFilter.addItem("Active Items");
         viewFilter.addItem("Archived Items");
         viewFilter.setFont(new Font("Verdana", Font.PLAIN, 14));
-        // Add action listener to trigger search when view filter changes
-        viewFilter.addActionListener((ActionEvent e) -> searchInventory()); //
+        viewFilter.addActionListener((ActionEvent e) -> searchInventory());
         panel.add(viewFilter);
 
         JButton searchBtn = new JButton("Search");
@@ -257,7 +247,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
                 new Font("Verdana", Font.BOLD, 14), Color.WHITE));
 
-        // Added "Unit Price" column
         String[] columns = {"ID", "Name", "Category", "Qty", "Unit", "Unit Price", "Status", "Condition", "Machine Status", "Image"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -267,11 +256,10 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
 
             @Override
             public Class<?> getColumnClass(int columnIndex) {
-                // Unit Price column (index 5) should be BigDecimal or similar if needed for sorting
                 if (columnIndex == 5) {
                     return BigDecimal.class;
                 }
-                if (columnIndex == 9) { // Image column index is now 9
+                if (columnIndex == 9) {
                     return ImageIcon.class;
                 }
                 return super.getColumnClass(columnIndex);
@@ -296,14 +284,12 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
 
-        // Apply center renderer to all columns except the image column (index 9)
         for (int i = 0; i < inventoryTable.getColumnCount(); i++) {
             if (i != 9) {
                  inventoryTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
             }
         }
 
-        // Status column renderer (index 6)
         inventoryTable.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -324,7 +310,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             }
         });
 
-        // Image column renderer (index 9)
         inventoryTable.getColumnModel().getColumn(9).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -332,8 +317,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
                 label.setText("");
                 if (value instanceof ImageIcon) {
                     ImageIcon originalIcon = (ImageIcon) value;
-                     // Scale image for table display
-                     Image scaledImage = originalIcon.getImage().getScaledInstance(-1, 50, Image.SCALE_SMOOTH); // Use SCALE_SMOOTH for better table image quality
+                     Image scaledImage = originalIcon.getImage().getScaledInstance(-1, 50, Image.SCALE_SMOOTH);
                     label.setIcon(new ImageIcon(scaledImage));
                 } else {
                     label.setIcon(null);
@@ -345,22 +329,21 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             }
         });
 
-        // Adjust column widths for all columns including Unit Price
-        inventoryTable.getColumnModel().getColumn(0).setPreferredWidth(40);  // ID
-        inventoryTable.getColumnModel().getColumn(1).setPreferredWidth(150); // Name
-        inventoryTable.getColumnModel().getColumn(2).setPreferredWidth(100); // Category
-        inventoryTable.getColumnModel().getColumn(3).setPreferredWidth(50);  // Qty
-        inventoryTable.getColumnModel().getColumn(4).setPreferredWidth(60);  // Unit
-        inventoryTable.getColumnModel().getColumn(5).setPreferredWidth(80);  // Unit Price (New)
-        inventoryTable.getColumnModel().getColumn(6).setPreferredWidth(80);  // Status (Shifted)
-        inventoryTable.getColumnModel().getColumn(7).setPreferredWidth(90);  // Condition (Shifted)
-        inventoryTable.getColumnModel().getColumn(8).setPreferredWidth(100); // Machine Status (Shifted)
-        inventoryTable.getColumnModel().getColumn(9).setPreferredWidth(70);  // Image (Shifted)
+        inventoryTable.getColumnModel().getColumn(0).setPreferredWidth(40);
+        inventoryTable.getColumnModel().getColumn(1).setPreferredWidth(150);
+        inventoryTable.getColumnModel().getColumn(2).setPreferredWidth(100);
+        inventoryTable.getColumnModel().getColumn(3).setPreferredWidth(50);
+        inventoryTable.getColumnModel().getColumn(4).setPreferredWidth(60);
+        inventoryTable.getColumnModel().getColumn(5).setPreferredWidth(80);
+        inventoryTable.getColumnModel().getColumn(6).setPreferredWidth(80);
+        inventoryTable.getColumnModel().getColumn(7).setPreferredWidth(90);
+        inventoryTable.getColumnModel().getColumn(8).setPreferredWidth(100);
+        inventoryTable.getColumnModel().getColumn(9).setPreferredWidth(70);
 
 
         JScrollPane scrollPane = new JScrollPane(inventoryTable);
         scrollPane.getViewport().setBackground(new Color(30, 30, 30));
-        panel.add(scrollPane, BorderLayout.CENTER); // Scroll pane takes center of table panel
+        panel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel paginationPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         paginationPanel.setOpaque(false);
@@ -389,10 +372,8 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
 
         JButton addButton = new JButton("Add New");
         styleActionButton(addButton, new Color(46, 204, 113));
-        addButton.addActionListener((ActionEvent e) -> openItemDetailsDialog(-1)); // -1 for new item
+        addButton.addActionListener((ActionEvent e) -> openItemDetailsDialog(-1));
         panel.add(addButton);
-
-        // Removed Save, Delete, Cancel buttons from the main panel
 
         return panel;
     }
@@ -454,17 +435,15 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         if (conn == null) return;
         String searchText = searchField.getText().trim().toLowerCase();
         String selectedCategory = (String) categoryFilter.getSelectedItem();
-        String selectedView = (String) viewFilter.getSelectedItem(); //
+        String selectedView = (String) viewFilter.getSelectedItem();
 
         StringBuilder sqlBuilder = new StringBuilder("SELECT COUNT(*) AS total FROM Items i");
         if (selectedCategory != null && !selectedCategory.equals("All Categories")) {
             sqlBuilder.append(" JOIN Categories c ON i.CategoryID = c.CategoryID");
         }
 
-        // Start with a generic WHERE clause to easily append conditions
-        sqlBuilder.append(" WHERE 1=1"); 
+        sqlBuilder.append(" WHERE 1=1");
 
-        // Apply IsArchived filter based on viewFilter selection
         if ("Active Items".equals(selectedView)) {
             sqlBuilder.append(" AND i.IsArchived = FALSE");
         } else if ("Archived Items".equals(selectedView)) {
@@ -517,7 +496,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
                         currentPage = totalPages;
                     }
                     updatePaginationControls();
-                    // After fetching total count and updating pagination, refresh the table data
                     refreshTableData();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -527,7 +505,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         }.execute();
     }
 
-    // New method to initiate table data loading
     private void refreshTableData() {
          if (conn == null) {
             System.err.println("Cannot refresh table data: DB connection is null.");
@@ -535,29 +512,25 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             return;
         }
 
-        // Cancel any previous data loading task
         if (currentDataLoader != null && !currentDataLoader.isDone()) {
-             System.out.println("Cancelling previous Inventory data loader task."); // Debug print
+             System.out.println("Cancelling previous Inventory data loader task.");
             currentDataLoader.cancel(true);
         }
 
         String searchText = searchField.getText().trim().toLowerCase();
         String selectedCategoryFilter = (String) categoryFilter.getSelectedItem();
-        String selectedViewFilter = (String) viewFilter.getSelectedItem(); //
+        String selectedViewFilter = (String) viewFilter.getSelectedItem();
         int offset = (currentPage - 1) * itemsPerPage;
 
         StringBuilder sqlBuilder = new StringBuilder(
-            // Added i.UnitPrice to the SELECT statement
             "SELECT i.ItemID, i.ItemName, c.CategoryName, i.Quantity, i.Unit, i.UnitPrice, i.Status, " +
             "i.ItemCondition, i.MachineStatus, i.ItemImage " +
             "FROM Items i " +
             "LEFT JOIN Categories c ON i.CategoryID = c.CategoryID"
         );
 
-        // Start with a generic WHERE clause to easily append conditions
-        sqlBuilder.append(" WHERE 1=1"); 
+        sqlBuilder.append(" WHERE 1=1");
 
-        // Apply IsArchived filter based on viewFilter selection
         if ("Active Items".equals(selectedViewFilter)) {
             sqlBuilder.append(" AND i.IsArchived = FALSE");
         } else if ("Archived Items".equals(selectedViewFilter)) {
@@ -573,7 +546,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         sqlBuilder.append(" ORDER BY i.ItemID DESC LIMIT ? OFFSET ?");
 
         final String finalSql = sqlBuilder.toString();
-        currentDataLoader = new InventoryLoader(finalSql, searchText, selectedCategoryFilter, offset, itemsPerPage, selectedViewFilter); //
+        currentDataLoader = new InventoryLoader(finalSql, searchText, selectedCategoryFilter, offset, itemsPerPage, selectedViewFilter);
         currentDataLoader.execute();
     }
 
@@ -584,7 +557,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         private final String categoryNameFilter;
         private final int offset;
         private final int limit;
-        private final String selectedViewFilter; //
+        private final String selectedViewFilter;
 
         public InventoryLoader(String sql, String searchText, String categoryNameFilter, int offset, int limit, String selectedViewFilter) {
             this.sql = sql;
@@ -592,25 +565,19 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             this.categoryNameFilter = categoryNameFilter;
             this.offset = offset;
             this.limit = limit;
-            this.selectedViewFilter = selectedViewFilter; //
-             System.out.println("InventoryLoader created for page " + (offset / limit + 1)); // Debug print
-            // Clear the table model on the Event Dispatch Thread (EDT)
-            // before loading new data to prevent duplication when changing pages or searching.
+            this.selectedViewFilter = selectedViewFilter;
+             System.out.println("InventoryLoader created for page " + (offset / limit + 1));
             SwingUtilities.invokeLater(() -> {
-                 System.out.println("Clearing Inventory table model on EDT before loading page " + (offset / limit + 1)); // Debug print
-                 tableModel.setRowCount(0); // Clear table on EDT
+                 System.out.println("Clearing Inventory table model on EDT before loading page " + (offset / limit + 1));
+                 tableModel.setRowCount(0);
             });
         }
 
         @Override
         protected Void doInBackground() throws Exception {
-             System.out.println("InventoryLoader doInBackground started for page " + (offset / limit + 1)); // Debug print
+             System.out.println("InventoryLoader doInBackground started for page " + (offset / limit + 1));
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 int paramIndex = 1;
-                // No specific parameter for IsArchived filter needed here, as it's directly appended to SQL.
-                // Parameter indexing starts after the conditional WHERE clauses.
-                // The `WHERE 1=1` followed by `AND` clauses ensures that the parameter order
-                // for searchText and categoryNameFilter remains consistent as if `IsArchived` wasn't there.
 
                 if (!searchText.isEmpty()) {
                     String searchTerm = "%" + searchText + "%";
@@ -626,7 +593,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
 
                 try (ResultSet rs = pstmt.executeQuery()) {
                     while (rs.next()) {
-                         // Check if the task has been cancelled
                         if (isCancelled()) {
                             System.out.println("InventoryLoader task cancelled.");
                             break;
@@ -636,21 +602,19 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
                         if (imgData != null && imgData.length > 0) {
                             try {
                                 ImageIcon orig = new ImageIcon(imgData);
-                                // Use SCALE_SMOOTH for better table image quality
                                 Image scaled = orig.getImage().getScaledInstance(-1, 50, Image.SCALE_SMOOTH);
                                 thumb = new ImageIcon(scaled);
                             } catch (Exception ix) {
                                 System.err.println("Error scaling image for table: " + ix.getMessage());
                             }
                         }
-                        // Added rs.getBigDecimal("UnitPrice") to the row data
                         publish(new Object[]{
                             rs.getInt("ItemID"),
                             rs.getString("ItemName"),
                             rs.getString("CategoryName"),
                             rs.getInt("Quantity"),
                             rs.getString("Unit"),
-                            rs.getBigDecimal("UnitPrice"), // Include UnitPrice here
+                            rs.getBigDecimal("UnitPrice"),
                             rs.getString("Status"),
                             rs.getString("ItemCondition"),
                             rs.getString("MachineStatus"),
@@ -661,7 +625,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             } catch (SQLException e) {
                 System.err.println("Error in InventoryLoader: " + e.getMessage());
                  SwingUtilities.invokeLater(() ->
-                    // Updated error message to include UnitPrice column check
                     JOptionPane.showMessageDialog(Inventory.this, "Error loading inventory data: " + e.getMessage() + "\nEnsure your database schema is up to date, especially the 'Items' table (e.g., ItemCondition, UnitPrice columns).", "Database Error", JOptionPane.ERROR_MESSAGE)
                 );
             }
@@ -670,8 +633,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
 
         @Override
         protected void process(java.util.List<Object[]> chunks) {
-             System.out.println("InventoryLoader process called with chunk size: " + chunks.size()); // Debug print
-             // Only add rows if the task is not cancelled
+             System.out.println("InventoryLoader process called with chunk size: " + chunks.size());
             if (!isCancelled()) {
                 for (Object[] rowData : chunks) {
                     tableModel.addRow(rowData);
@@ -682,20 +644,17 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
         }
          @Override
         protected void done() {
-             System.out.println("InventoryLoader done called. Is cancelled: " + isCancelled()); // Debug print
+             System.out.println("InventoryLoader done called. Is cancelled: " + isCancelled());
             try {
-                 // Check if the task was cancelled before processing results
                 if (!isCancelled()) {
-                    get(); // Check for exceptions from doInBackground
+                    get();
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                 // Only show error dialog if the task was not cancelled
                 if (!isCancelled()) {
                     JOptionPane.showMessageDialog(Inventory.this, "Failed to complete inventory loading: " + e.getMessage(), "Loading Error", JOptionPane.ERROR_MESSAGE);
                 }
             } finally {
-                 // Ensure currentDataLoader is set to null on completion or cancellation
                  currentDataLoader = null;
             }
         }
@@ -703,7 +662,7 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
 
     private void searchInventory() {
         currentPage = 1;
-        fetchTotalItemCount(); // Fetch total count for new search, which triggers refreshTableData
+        fetchTotalItemCount();
     }
 
     private void updatePaginationControls() {
@@ -720,8 +679,8 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
     private void gotoPreviousPage() {
         if (currentPage > 1) {
             currentPage--;
-            refreshTableData(); // Refresh data for the new page
-            updatePaginationControls(); // Update controls based on new page
+            refreshTableData();
+            updatePaginationControls();
         }
     }
 
@@ -730,26 +689,23 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
          totalPages = Math.max(totalPages, 1);
         if (currentPage < totalPages) {
             currentPage++;
-            refreshTableData(); // Refresh data for the new page
-            updatePaginationControls(); // Update controls based on new page
+            refreshTableData();
+            updatePaginationControls();
         }
     }
 
-    // Method to open the ItemDetailsDialog
     private void openItemDetailsDialog(int itemId) {
-        // Pass the current frame, modal status, connection, current user, and this listener
         ItemDetailsDialog dialog = new ItemDetailsDialog((Frame) SwingUtilities.getWindowAncestor(this), true, conn, currentUser, this);
         if (itemId == -1) {
-            dialog.prepareNewItem(); // Prepare for a new item
+            dialog.prepareNewItem();
         } else {
-            dialog.loadItemDetails(itemId); // Load details for an existing item
+            dialog.loadItemDetails(itemId);
         }
     }
 
      @Override
     public void itemSavedOrArchived() {
-        // This method is called when an item is saved, archived, or restored in the dialog
-        fetchTotalItemCount(); // Refresh the table data
+        fetchTotalItemCount();
     }
 
 
@@ -778,7 +734,6 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows > 0) {
                 JOptionPane.showMessageDialog(this, "Category '" + categoryName + "' added successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                // Reload categories in the filter dropdown
                 loadCategories();
             } else {
                 JOptionPane.showMessageDialog(this, "Failed to add category.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -802,6 +757,8 @@ public class Inventory extends javax.swing.JPanel implements ItemDetailsListener
             return true;
         }
     }
+
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

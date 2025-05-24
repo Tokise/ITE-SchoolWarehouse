@@ -1,12 +1,8 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JPanel.java to edit this template
- */
 package modules;
 
-import Package1.DBConnection; // Assuming DBConnection is in Package1
-import Package1.User; // Assuming User class is in Package1
-import Package1.PasswordHasher; // Corrected import to use PasswordHasher
+import Package1.DBConnection;
+import Package1.User;
+import Package1.PasswordHasher;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -33,54 +29,39 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-/**
- * JPanel for managing user settings (password and profile picture).
- */
 public class Settings extends javax.swing.JPanel {
 
     private Connection conn = null;
-    private User currentUser; // The current logged-in user
+    private User currentUser;
 
     private JPasswordField currentPasswordField;
     private JPasswordField newPasswordField;
     private JPasswordField confirmNewPasswordField;
     private JButton changePasswordButton;
 
-    private JLabel profilePictureLabel; // To display the current/selected profile picture
+    private JLabel profilePictureLabel;
     private JButton changeProfilePictureButton;
     private JButton saveProfilePictureButton;
-    private byte[] selectedProfilePictureBytes; // To hold the bytes of the newly selected image
+    private byte[] selectedProfilePictureBytes;
 
-    /**
-     * Creates new form Settings
-     */
     public Settings() {
         initComponents();
-        connectToDatabase(); // Establish database connection
-        setupSettingsPanel(); // Setup the UI components
+        connectToDatabase();
+        setupSettingsPanel();
     }
 
-    /**
-     * Sets the current user for the Settings panel.
-     * Details for this user will be loaded and changes will apply to this user.
-     * @param user The current logged-in user.
-     */
     public void setCurrentUser(User user) {
         this.currentUser = user;
         if (this.currentUser != null) {
             System.out.println("Settings: User object set. UserID: " + this.currentUser.getUserId() + ", Username: " + this.currentUser.getUsername());
-            loadProfilePicture(); // Load the user's current profile picture
+            loadProfilePicture();
         } else {
             System.out.println("Settings: Current user is null.");
-            profilePictureLabel.setIcon(null); // Clear profile picture display
+            profilePictureLabel.setIcon(null);
         }
     }
 
 
-    /**
-     * Establishes a connection to the database.
-     * @return true if connection is successful, false otherwise.
-     */
     private boolean connectToDatabase() {
         try {
             conn = DBConnection.getConnection();
@@ -98,9 +79,6 @@ public class Settings extends javax.swing.JPanel {
         }
     }
 
-    /**
-     * Sets up the UI components for the Settings panel.
-     */
     private void setupSettingsPanel() {
         this.setLayout(new BorderLayout(10, 10));
         this.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -114,7 +92,6 @@ public class Settings extends javax.swing.JPanel {
                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
                 new Font("Verdana", Font.BOLD, 18), Color.WHITE));
 
-        // --- Password Change Section ---
         JPanel passwordPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         passwordPanel.setOpaque(false);
         passwordPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.DARK_GRAY),
@@ -135,15 +112,14 @@ public class Settings extends javax.swing.JPanel {
         passwordPanel.add(confirmNewPasswordField);
 
         changePasswordButton = new JButton("Change Password");
-        styleButton(changePasswordButton, new Color(231, 76, 60)); // Red color for caution
+        styleButton(changePasswordButton, new Color(231, 76, 60));
         changePasswordButton.addActionListener(e -> changePassword());
         JPanel passwordButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         passwordButtonPanel.setOpaque(false);
         passwordButtonPanel.add(changePasswordButton);
-        passwordPanel.add(passwordButtonPanel); // Add button panel to password panel
+        passwordPanel.add(passwordButtonPanel);
 
 
-        // --- Profile Picture Section ---
         JPanel profilePicturePanel = new JPanel(new BorderLayout(10, 10));
         profilePicturePanel.setOpaque(false);
          profilePicturePanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.DARK_GRAY),
@@ -152,7 +128,7 @@ public class Settings extends javax.swing.JPanel {
                 new Font("Verdana", Font.BOLD, 14), Color.LIGHT_GRAY));
 
         profilePictureLabel = new JLabel();
-        profilePictureLabel.setPreferredSize(new java.awt.Dimension(100, 100)); // Set a preferred size for the image area
+        profilePictureLabel.setPreferredSize(new java.awt.Dimension(100, 100));
         profilePictureLabel.setHorizontalAlignment(SwingConstants.CENTER);
         profilePictureLabel.setVerticalAlignment(SwingConstants.CENTER);
         profilePictureLabel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
@@ -172,22 +148,15 @@ public class Settings extends javax.swing.JPanel {
         profilePicturePanel.add(profilePictureButtonPanel, BorderLayout.CENTER);
 
 
-        // Add sections to the main content panel
         contentPanel.add(passwordPanel);
-        contentPanel.add(javax.swing.Box.createVerticalStrut(20)); // Add some space
+        contentPanel.add(javax.swing.Box.createVerticalStrut(20));
         contentPanel.add(profilePicturePanel);
 
 
-        this.add(contentPanel, BorderLayout.NORTH); // Add content panel to the top
-        // The rest of the panel will be empty or could contain other settings
+        this.add(contentPanel, BorderLayout.NORTH);
     }
 
-     /**
-     * Styles a JButton with custom background, foreground, and font.
-     * @param button The button to style.
-     * @param bgColor The background color.
-     */
-    private void styleButton(JButton button, Color bgColor) {
+     private void styleButton(JButton button, Color bgColor) {
         button.setFont(new Font("Verdana", Font.BOLD, 14));
         button.setBackground(bgColor);
         button.setForeground(Color.WHITE);
@@ -199,9 +168,6 @@ public class Settings extends javax.swing.JPanel {
     }
 
 
-    /**
-     * Handles the password change process.
-     */
     private void changePassword() {
         if (currentUser == null) {
              JOptionPane.showMessageDialog(this, "User not logged in. Cannot change password.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -235,13 +201,9 @@ public class Settings extends javax.swing.JPanel {
                 if (rs.next()) {
                     String storedHashedPassword = rs.getString("Password");
 
-                    // Verify current password using PasswordHasher
-
                     if (PasswordHasher.verifyPassword(currentPassword, storedHashedPassword)) {
-                        // Hash the new password using PasswordHasher
                         String newHashedPassword = PasswordHasher.hashPassword(newPassword);
 
-                        // Update the password in the database
                         String updateSql = "UPDATE Users SET Password = ? WHERE UserID = ?";
                         try (PreparedStatement updatePstmt = conn.prepareStatement(updateSql)) {
                             updatePstmt.setString(1, newHashedPassword);
@@ -249,7 +211,6 @@ public class Settings extends javax.swing.JPanel {
                             int affectedRows = updatePstmt.executeUpdate();
                             if (affectedRows > 0) {
                                 JOptionPane.showMessageDialog(this, "Password changed successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                                // Clear fields
                                 currentPasswordField.setText("");
                                 newPasswordField.setText("");
                                 confirmNewPasswordField.setText("");
@@ -275,9 +236,6 @@ public class Settings extends javax.swing.JPanel {
         }
     }
 
-    /**
-     * Opens a file chooser to select a new profile picture.
-     */
     private void chooseProfilePicture() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Select Profile Picture");
@@ -288,30 +246,24 @@ public class Settings extends javax.swing.JPanel {
         if (userSelection == JFileChooser.APPROVE_OPTION) {
             File fileToLoad = fileChooser.getSelectedFile();
             try {
-                // Read the file into a byte array
                 FileInputStream fis = new FileInputStream(fileToLoad);
                 selectedProfilePictureBytes = new byte[(int) fileToLoad.length()];
                 fis.read(selectedProfilePictureBytes);
                 fis.close();
 
-                // Display a preview
                 ImageIcon originalIcon = new ImageIcon(selectedProfilePictureBytes);
-                // Scale to fit the label size - ensure label has a size set
                 Image scaledImage = originalIcon.getImage().getScaledInstance(profilePictureLabel.getWidth(), profilePictureLabel.getHeight(), Image.SCALE_SMOOTH);
                 profilePictureLabel.setIcon(new ImageIcon(scaledImage));
 
             } catch (IOException e) {
                 System.err.println("Error reading image file: " + e.getMessage());
                 JOptionPane.showMessageDialog(this, "Error reading image file: " + e.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
-                selectedProfilePictureBytes = null; // Clear bytes on error
-                profilePictureLabel.setIcon(null); // Clear preview
+                selectedProfilePictureBytes = null;
+                profilePictureLabel.setIcon(null);
             }
         }
     }
 
-    /**
-     * Saves the selected profile picture to the database.
-     */
     private void saveProfilePicture() {
         if (currentUser == null) {
              JOptionPane.showMessageDialog(this, "User not logged in. Cannot save profile picture.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -334,11 +286,8 @@ public class Settings extends javax.swing.JPanel {
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows > 0) {
                 JOptionPane.showMessageDialog(this, "Profile picture saved successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                // Update the currentUser object's profile picture
-                 currentUser.setProfilePicture(selectedProfilePictureBytes); // Assuming User object has this method
-                // You'll need a way to signal the Sidebar to update its display.
-                // This might involve a custom event or a direct method call if the Sidebar is accessible.
-                 notifySidebarProfilePictureChanged(); // Placeholder call
+                 currentUser.setProfilePicture(selectedProfilePictureBytes);
+                notifySidebarProfilePictureChanged();
             } else {
                 JOptionPane.showMessageDialog(this, "Failed to save profile picture.", "Database Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -349,12 +298,9 @@ public class Settings extends javax.swing.JPanel {
         }
     }
 
-    /**
-     * Loads the current user's profile picture from the database and displays it.
-     */
     private void loadProfilePicture() {
          if (currentUser == null || conn == null) {
-             profilePictureLabel.setIcon(null); // Clear display if no user or connection
+             profilePictureLabel.setIcon(null);
              return;
          }
 
@@ -364,52 +310,30 @@ public class Settings extends javax.swing.JPanel {
              try (ResultSet rs = pstmt.executeQuery()) {
                  if (rs.next()) {
                      byte[] imgBytes = rs.getBytes("ProfilePicture");
-                     // Update user object with the fetched picture bytes
                      currentUser.setProfilePicture(imgBytes);
 
                      if (imgBytes != null && imgBytes.length > 0) {
                           ImageIcon originalIcon = new ImageIcon(imgBytes);
-                          // Scale to fit the label size - ensure label has a size set
                           Image scaledImage = originalIcon.getImage().getScaledInstance(profilePictureLabel.getWidth(), profilePictureLabel.getHeight(), Image.SCALE_SMOOTH);
                           profilePictureLabel.setIcon(new ImageIcon(scaledImage));
                      } else {
-                         profilePictureLabel.setIcon(null); // No picture in DB
+                         profilePictureLabel.setIcon(null);
                      }
                  } else {
-                     profilePictureLabel.setIcon(null); // User not found or no picture
+                     profilePictureLabel.setIcon(null);
                  }
              }
          } catch (SQLException e) {
              System.err.println("Database error loading profile picture: " + e.getMessage());
              e.printStackTrace();
-             profilePictureLabel.setIcon(null); // Clear on error
+             profilePictureLabel.setIcon(null);
          }
     }
 
-    /**
-     * Placeholder method to notify the Sidebar that the profile picture has changed.
-     * You will need to implement a proper mechanism for this (e.g., using events
-     * or passing references).
-     */
     private void notifySidebarProfilePictureChanged() {
         System.out.println("Notification sent to update sidebar profile picture.");
-        // TODO: Implement actual notification logic.
-        // If your DashboardFrame holds references to both Sidebar and Settings,
-        // the Settings panel could call a method on the DashboardFrame, which
-        // in turn calls a method on the Sidebar (e.g., sidebar.setUser(updatedUser)).
-        // For now, you might manually update the sidebar instance if you have access to it.
-        // Example (assuming you have a reference to the sidebar instance):
-        // if (sidebarInstance != null) {
-        //     sidebarInstance.setUser(currentUser); // Re-set the user to refresh the picture
-        // }
     }
 
-
-    /**
-     * This method is called from within the constructor to initialize the form.
-     * WARNING: Do NOT modify this code. The content of this method is always
-     * regenerated by the Form Editor.
-     */
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

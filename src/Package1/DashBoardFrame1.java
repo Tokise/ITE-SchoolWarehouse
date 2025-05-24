@@ -6,7 +6,6 @@ import modules.Users;
 import modules.PurchaseOrder;
 import modules.Reports;
 import modules.Settings;
-// Import the new KioskDashboard
 import modules.KioskDashboard;
 
 import javax.swing.*;
@@ -15,20 +14,20 @@ import java.awt.*;
 public class DashBoardFrame1 extends javax.swing.JFrame {
 
     private User user;
-    private Dashboard adminDashboard; // Renamed for clarity
+    private Dashboard adminDashboard;
     private Inventory inventory;
     private Users usersPanel;
-    private PurchaseOrder purchaseOrder; // Added missing member variable
-    private Reports reports; // Added missing member variable
-    private Settings settings; // Added missing member variable
+    private PurchaseOrder purchaseOrder;
+    private Reports reports;
+    private Settings settings;
 
-    private KioskDashboard kioskDashboard; // New member variable for Kiosk Dashboard
+    private KioskDashboard kioskDashboard;
 
     public DashBoardFrame1(User user) {
         initComponents();
         this.user = user;
         sidebar1.setDashboardFrame(this);
-        sidebar1.setUser(user); // Pass the user to the sidebar
+        sidebar1.setUser(user);
         this.setSize(1200, 710);
         this.setLocationRelativeTo(null);
         this.setVisible(true);
@@ -36,43 +35,31 @@ public class DashBoardFrame1 extends javax.swing.JFrame {
         contentPanel1.setLayout(new BorderLayout());
         header2.setParentFrame(this);
 
-        // Initialize and show the correct dashboard based on user role
         initializeAndShowDashboard();
     }
 
-    // Method to initialize and show the appropriate dashboard based on user role
     private void initializeAndShowDashboard() {
         if (user != null) {
             System.out.println("Logged in user role: " + user.getRole());
 
-            // Hide sidebar if the user is a KioskUser
             if ("KioskUser".equals(user.getRole())) {
                 sidebar1.setVisible(false);
-                // Adjust the layout to remove the space occupied by the sidebar
-                // This might require adjusting the main frame's layout or the content panel's constraints
-                // For a simple BorderLayout, removing the component might be enough, but revalidation is key.
-                // A more robust solution might involve a CardLayout or similar in the main content area
-                // or dynamically adjusting the split pane if one is used.
-                // For now, let's just hide it and rely on revalidate/repaint.
                  getContentPane().revalidate();
                  getContentPane().repaint();
 
                 showKioskDashboard();
             } else {
-                // Show sidebar for Admin and Custodian
                 sidebar1.setVisible(true);
                 showAdminDashboard();
             }
         } else {
             System.err.println("User is null in initializeAndShowDashboard!");
-            // Handle case where user is null, maybe show an error or default view
-            sidebar1.setVisible(true); // Show sidebar by default if user is null
-            showAdminDashboard(); // Default to admin dashboard as a fallback
+            sidebar1.setVisible(true);
+            showAdminDashboard();
         }
     }
 
 
-    // Method to show the standard Admin/Custodian Dashboard
     void showAdminDashboard() {
         if (adminDashboard == null) {
             adminDashboard = new Dashboard();
@@ -80,11 +67,9 @@ public class DashBoardFrame1 extends javax.swing.JFrame {
         setForm(adminDashboard);
     }
 
-    // Method to show the Kiosk Dashboard
     void showKioskDashboard() {
          if (kioskDashboard == null) {
             kioskDashboard = new KioskDashboard();
-             // Pass the logged-in user to the KioskDashboard
              if (user != null) {
                  kioskDashboard.setCurrentUser(user);
              } else {
@@ -102,22 +87,16 @@ public class DashBoardFrame1 extends javax.swing.JFrame {
         contentPanel1.revalidate();
     }
 
-    // Additional overloaded methods to handle specific panel types
     public void setForm(Dashboard dashboard) {
-        // Ensure the user is set on the dashboard if needed
-         if (user != null) {
-            // dashboard.setCurrentUser(user); // Assuming Dashboard needs the user
-         }
         setForm((JPanel) dashboard);
     }
 
     public void setForm(Inventory inventory) {
-        this.inventory = inventory; // Store the Inventory instance
+        this.inventory = inventory;
         System.out.println("DashBoardFrame1: setForm(Inventory) called");
-        // Ensure user is not null before accessing getUserId()
         if (user != null) {
             System.out.println("DashBoardFrame1: User ID before setting Inventory: " + user.getUserId());
-            inventory.setCurrentUserId(user.getUserId()); // Set the user ID here
+            inventory.setCurrentUserId(user.getUserId());
             System.out.println("DashBoardFrame1: Setting Inventory's User ID to: " + user.getUserId());
         } else {
             System.err.println("DashBoardFrame1: User is null when trying to set Inventory's User ID!");
@@ -136,7 +115,7 @@ public class DashBoardFrame1 extends javax.swing.JFrame {
             public void run() {
                 if (DashBoardFrame1.this.user != null) {
 
-                    usersPanel.setCurrentUserId(DashBoardFrame1.this.user); // Pass the logged-in user to the Users panel
+                    usersPanel.setCurrentUserId(DashBoardFrame1.this.user);
                 } else {
 
                     System.err.println("Error: Current user not set in DashBoardFrame1 after invokeLater for Users form!");
@@ -147,33 +126,28 @@ public class DashBoardFrame1 extends javax.swing.JFrame {
     }
 
     public void setForm(PurchaseOrder purchaseOrder) {
-         this.purchaseOrder = purchaseOrder; // Store the instance
+         this.purchaseOrder = purchaseOrder;
          if (user != null) {
-             // purchaseOrder.setCurrentUser(user); // Assuming PurchaseOrder needs the user
          }
         setForm((JPanel) purchaseOrder);
     }
 
     public void setForm(Reports reports) {
-         this.reports = reports; // Store the instance
+         this.reports = reports;
          if (user != null) {
-             // reports.setCurrentUser(user); // Assuming Reports needs the user
          }
         setForm((JPanel) reports);
     }
 
     public void setForm(Settings settings) {
-         this.settings = settings; // Store the instance
+         this.settings = settings;
          if (user != null) {
-             // settings.setCurrentUser(user); // Assuming Settings needs the user
          }
         setForm((JPanel) settings);
     }
 
-     // New setForm method for KioskDashboard
      public void setForm(KioskDashboard kioskDashboard) {
-         this.kioskDashboard = kioskDashboard; // Store the instance
-         // The user is already set when the kioskDashboard is created in showKioskDashboard()
+         this.kioskDashboard = kioskDashboard;
          setForm((JPanel) kioskDashboard);
      }
 
@@ -183,6 +157,7 @@ public class DashBoardFrame1 extends javax.swing.JFrame {
         LoginFrame loginFrame = new LoginFrame();
         loginFrame.setVisible(true);
     }
+
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents

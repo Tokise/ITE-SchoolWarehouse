@@ -1,16 +1,19 @@
 package components;
 
-import Package1.DashBoardFrame1; // Assuming DashBoardFrame1 is in Package1
-import Package1.User; // Assuming User class is in Package1
+import Package1.DashBoardFrame1;
+import Package1.User;
 import event.EventMenu;
 import modules.*;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.Image; // Import Image
+import java.awt.Image;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Sidebar extends javax.swing.JPanel {
 
@@ -22,37 +25,35 @@ public class Sidebar extends javax.swing.JPanel {
 
     public Sidebar() {
         initComponents();
-        // Removed the call to the unimplemented setIcons() method
-        // setIcons(); // Sets default icons
+
         menuButtons = new ArrayList<>();
         menuButtons.add(buttonMenu1);
         menuButtons.add(buttonMenu2);
         menuButtons.add(buttonMenu3);
-        buttonMenu4.setText("Purchase Order"); // Ensure text is set for buttonMenu4
+        buttonMenu4.setText("Purchase Order");
         menuButtons.add(buttonMenu4);
         menuButtons.add(buttonMenu5);
         menuButtons.add(buttonMenu6);
+        buttonMenu7.setText("Borrowed Items");
+        menuButtons.add(buttonMenu7); 
 
-        // Set Dashboard as selected by default initially
         setSelected(0);
-        // Setup button actions after initComponents and menuButtons list is populated
+
         setupButtonActions();
     }
 
     public Sidebar(DashBoardFrame1 dashboardFrame, User user) {
-        this(); // Call default constructor to initialize components
+        this();
         this.dashboardFrame = dashboardFrame;
-        setUser(user); // Set the user and configure UI based on role and load picture
+        setUser(user);
     }
 
-    /**
-     * Configures sidebar button visibility based on the user's role.
-     */
+
     private void configureSidebarBasedOnRole() {
         if (this.user != null && "Custodian".equals(this.user.getRole())) {
-            buttonMenu3.setVisible(false); // Hide Users button for Custodian
+            buttonMenu3.setVisible(false);
         } else {
-            buttonMenu3.setVisible(true); // Show Users button for other roles (e.g., Admin)
+            buttonMenu3.setVisible(true);
         }
     }
 
@@ -60,65 +61,53 @@ public class Sidebar extends javax.swing.JPanel {
         this.dashboardFrame = dashboardFrame;
     }
 
-    /**
-     * Sets the current user and updates sidebar display (name, role, profile picture).
-     * @param user The current logged-in user.
-     */
+
     public void setUser(User user) {
         this.user = user;
         if (user != null) {
             jLabel1.setText(user.getFullName());
             jLabel2.setText(user.getRole());
-            // Assuming the User object now has a getProfilePicture() method that returns byte[]
+
             loadAndDisplayProfilePicture(user.getProfilePicture());
-            // setupButtonActions(); // Actions should be set up once in the constructor
-            configureSidebarBasedOnRole(); // Configure visibility based on role
+
+            configureSidebarBasedOnRole();
         } else {
             jLabel1.setText("Unknown");
             jLabel2.setText("Unknown Role");
-            imageAvatar1.setIcon(loadIcon("/assets/AssetWise Academia.png")); // Set default icon
-            // Consider disabling buttons or showing a login prompt if no user is set
+            imageAvatar1.setIcon(loadIcon("/assets/AssetWise Academia.png"));
+
         }
     }
 
-    /**
-     * Loads and scales the profile picture byte array for display in the ImageAvatar.
-     * @param imageData The byte array containing the profile picture data.
-     */
     private void loadAndDisplayProfilePicture(byte[] imageData) {
         if (imageData != null && imageData.length > 0) {
             try {
                 ImageIcon originalIcon = new ImageIcon(imageData);
-                // Scale the image to fit the ImageAvatar component size
-                // Assuming ImageAvatar1 has a fixed size or you can get its size
-                int avatarSize = 86; // Based on your initComponents layout
+
+                int avatarSize = 86;
                 Image scaledImage = originalIcon.getImage().getScaledInstance(avatarSize, avatarSize, Image.SCALE_SMOOTH);
                 imageAvatar1.setIcon(new ImageIcon(scaledImage));
             } catch (Exception e) {
                 System.err.println("Error loading or scaling profile picture: " + e.getMessage());
                 e.printStackTrace();
-                imageAvatar1.setIcon(loadIcon("/assets/AssetWise Academia.png")); // Fallback to default icon
+                imageAvatar1.setIcon(loadIcon("/assets/AssetWise Academia.png"));
             }
         } else {
-            imageAvatar1.setIcon(loadIcon("/assets/AssetWise Academia.png")); // Set default icon if no image data
+            imageAvatar1.setIcon(loadIcon("/assets/AssetWise Academia.png"));
         }
     }
 
 
-    /**
-     * Loads an icon from the specified path.
-     * @param path The path to the icon resource.
-     * @return The loaded ImageIcon, or null if loading fails.
-     */
+
     private ImageIcon loadIcon(String path) {
        try {
-            // Use getResourceAsStream for robust loading from JARs
+
             java.net.URL imgURL = getClass().getResource(path);
             if (imgURL != null) {
                 return new ImageIcon(imgURL);
             } else {
                 System.err.println("Couldn't find icon file: " + path);
-                // Consider returning a default "not found" icon
+
                 return null;
             }
         } catch (Exception e) {
@@ -127,10 +116,7 @@ public class Sidebar extends javax.swing.JPanel {
         }
     }
 
-    /**
-     * Sets the selected state for the menu buttons.
-     * @param index The index of the button to select.
-     */
+
     private void setSelected(int index) {
         for (int i = 0; i < menuButtons.size(); i++) {
             menuButtons.get(i).setSelected(i == index);
@@ -138,24 +124,21 @@ public class Sidebar extends javax.swing.JPanel {
         selectedIndex = index;
     }
 
-    /**
-     * Sets up action listeners for the sidebar buttons.
-     */
+
     private void setupButtonActions() {
-        // Remove existing listeners to prevent duplicates before adding new ones
+
          for(ButtonMenu button : menuButtons) {
             for(ActionListener al : button.getActionListeners()) {
                 button.removeActionListener(al);
             }
         }
 
-        // Add new listeners
         buttonMenu1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (dashboardFrame != null) {
-                    setSelected(0);
-                    dashboardFrame.setForm(new Dashboard()); // Assuming Dashboard is a JPanel
+                    setSelected(menuButtons.indexOf(buttonMenu1));
+                    dashboardFrame.setForm(new Dashboard());
                 }
             }
         });
@@ -164,10 +147,8 @@ public class Sidebar extends javax.swing.JPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (dashboardFrame != null) {
-                    setSelected(1);
-                    Inventory inventoryPanel = new Inventory(); // Create new instance
-                    // Pass the current user to the Inventory panel if needed
-                    // inventoryPanel.setCurrentUser(user); // Uncomment if Inventory needs the User object
+                    setSelected(menuButtons.indexOf(buttonMenu2));
+                    Inventory inventoryPanel = new Inventory();
                     dashboardFrame.setForm(inventoryPanel);
                 }
             }
@@ -176,14 +157,14 @@ public class Sidebar extends javax.swing.JPanel {
         buttonMenu3.addActionListener(new ActionListener() {
            @Override
             public void actionPerformed(ActionEvent e) {
-                // Only allow Admin to access Users section
+
                 if (user != null && "Admin".equals(user.getRole()) && dashboardFrame != null) {
-                    setSelected(2);
-                    dashboardFrame.setForm(new Users()); // Assuming Users is a JPanel
+                    setSelected(menuButtons.indexOf(buttonMenu3));
+                    dashboardFrame.setForm(new Users());
                 } else {
-                    // Optionally show a message if access is denied
+
                     JOptionPane.showMessageDialog(null, "Access Denied. Only Admins can view Users.", "Permission Denied", JOptionPane.WARNING_MESSAGE);
-                     // Re-select the previously selected button if access is denied
+
                     setSelected(selectedIndex);
                 }
             }
@@ -193,9 +174,9 @@ public class Sidebar extends javax.swing.JPanel {
             @Override
              public void actionPerformed(ActionEvent e) {
                 if (dashboardFrame != null) {
-                    setSelected(3);
-                    PurchaseOrder purchaseOrderPanel = new PurchaseOrder(); // Create new instance
-                    purchaseOrderPanel.setCurrentUser(user); // Pass the current user
+                    setSelected(menuButtons.indexOf(buttonMenu4));
+                    PurchaseOrder purchaseOrderPanel = new PurchaseOrder();
+                    purchaseOrderPanel.setCurrentUser(user);
                     dashboardFrame.setForm(purchaseOrderPanel);
                 }
             }
@@ -205,8 +186,8 @@ public class Sidebar extends javax.swing.JPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (dashboardFrame != null) {
-                    setSelected(4);
-                    dashboardFrame.setForm(new Reports()); // Assuming Reports is a JPanel
+                    setSelected(menuButtons.indexOf(buttonMenu5));
+                    dashboardFrame.setForm(new Reports());
                 }
             }
         });
@@ -215,33 +196,38 @@ public class Sidebar extends javax.swing.JPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (dashboardFrame != null) {
-                    setSelected(5);
-                    Settings settingsPanel = new Settings(); // Create new instance
-                    settingsPanel.setCurrentUser(user); // Pass the current user
+                    setSelected(menuButtons.indexOf(buttonMenu6));
+                    Settings settingsPanel = new Settings();
+                    settingsPanel.setCurrentUser(user);
                     dashboardFrame.setForm(settingsPanel);
                 }
             }
         });
 
-        // Re-apply the selected state after setting up actions
-        setSelected(selectedIndex); // Ensure the correct button remains selected after actions are set
+      
+        buttonMenu7.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (dashboardFrame != null) {
+                    setSelected(menuButtons.indexOf(buttonMenu7));
+                    dashboardFrame.setForm(new BorrowedTransactionsPanel());
+                }
+            }
+        });
+       
+
+        setSelected(selectedIndex);
     }
 
 
-    /**
-     * Placeholder method for setting icons.
-     * This method was causing the UnsupportedOperationException.
-     * If you intend to set static icons for the menu buttons, implement the logic here.
-     */
+
+
     private void setIcons() {
-        // Example:
-        // buttonMenu1.setIcon(loadIcon("/assets/dashboard_icon.png"));
-        // buttonMenu2.setIcon(loadIcon("/assets/inventory_icon.png"));
-        // ... and so on for other buttons
+
          System.out.println("setIcons method called. Implement actual icon loading here if needed.");
-         // Remove the throw statement once implemented:
-         // throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+
     }
+
 
      
     @SuppressWarnings("unchecked")
@@ -258,6 +244,7 @@ public class Sidebar extends javax.swing.JPanel {
         buttonMenu4 = new components.ButtonMenu();
         buttonMenu5 = new components.ButtonMenu();
         buttonMenu6 = new components.ButtonMenu();
+        buttonMenu7 = new components.ButtonMenu();
 
         panelMenu.setBackground(new java.awt.Color(0, 0, 0));
         panelMenu.setBorder(new javax.swing.border.SoftBevelBorder(javax.swing.border.BevelBorder.RAISED));
@@ -310,6 +297,15 @@ public class Sidebar extends javax.swing.JPanel {
         buttonMenu6.setText("Settings");
         buttonMenu6.setFont(new java.awt.Font("Verdana", 0, 14)); // NOI18N
 
+        buttonMenu7.setBackground(new java.awt.Color(102, 102, 102));
+        buttonMenu7.setText("Borrowed Items");
+        buttonMenu7.setFont(new java.awt.Font("Verdana", 0, 14)); // NOI18N
+        buttonMenu7.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                buttonMenu7ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout panelMenuLayout = new javax.swing.GroupLayout(panelMenu);
         panelMenu.setLayout(panelMenuLayout);
         panelMenuLayout.setHorizontalGroup(
@@ -318,18 +314,19 @@ public class Sidebar extends javax.swing.JPanel {
                 .addGroup(panelMenuLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(panelMenuLayout.createSequentialGroup()
                         .addGap(37, 37, 37)
-                        .addGroup(panelMenuLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(buttonMenu6, javax.swing.GroupLayout.PREFERRED_SIZE, 168, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(buttonMenu2, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(buttonMenu3, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(buttonMenu4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(buttonMenu5, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(buttonMenu1, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGroup(panelMenuLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(buttonMenu6, javax.swing.GroupLayout.DEFAULT_SIZE, 168, Short.MAX_VALUE)
+                            .addComponent(buttonMenu2, javax.swing.GroupLayout.DEFAULT_SIZE, 128, Short.MAX_VALUE)
+                            .addComponent(buttonMenu3, javax.swing.GroupLayout.DEFAULT_SIZE, 128, Short.MAX_VALUE)
+                            .addComponent(buttonMenu4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(buttonMenu5, javax.swing.GroupLayout.DEFAULT_SIZE, 128, Short.MAX_VALUE)
+                            .addComponent(buttonMenu1, javax.swing.GroupLayout.DEFAULT_SIZE, 128, Short.MAX_VALUE)
                             .addGroup(panelMenuLayout.createSequentialGroup()
                                 .addGap(9, 9, 9)
                                 .addGroup(panelMenuLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jLabel1)
-                                    .addComponent(jLabel2)))))
+                                    .addComponent(jLabel2)))
+                            .addComponent(buttonMenu7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                     .addGroup(panelMenuLayout.createSequentialGroup()
                         .addGap(84, 84, 84)
                         .addComponent(imageAvatar1, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)))
@@ -352,6 +349,8 @@ public class Sidebar extends javax.swing.JPanel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(buttonMenu2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(buttonMenu7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(buttonMenu3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(buttonMenu4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -359,7 +358,7 @@ public class Sidebar extends javax.swing.JPanel {
                 .addComponent(buttonMenu5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(buttonMenu6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(115, Short.MAX_VALUE))
+                .addContainerGap(75, Short.MAX_VALUE))
         );
 
         panelMenuLayout.linkSize(javax.swing.SwingConstants.VERTICAL, new java.awt.Component[] {buttonMenu1, buttonMenu2, buttonMenu3, buttonMenu4, buttonMenu5, buttonMenu6});
@@ -396,6 +395,13 @@ public class Sidebar extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_buttonMenu3ActionPerformed
 
+    private void buttonMenu7ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_buttonMenu7ActionPerformed
+          if (dashboardFrame != null) {
+              setSelected(menuButtons.indexOf(buttonMenu7));
+              dashboardFrame.setForm(new BorrowedTransactionsPanel());
+        }
+    }//GEN-LAST:event_buttonMenu7ActionPerformed
+
   
     
 
@@ -406,6 +412,7 @@ public class Sidebar extends javax.swing.JPanel {
     private components.ButtonMenu buttonMenu4;
     private components.ButtonMenu buttonMenu5;
     private components.ButtonMenu buttonMenu6;
+    private components.ButtonMenu buttonMenu7;
     private swing.ImageAvatar imageAvatar1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;

@@ -7,15 +7,15 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.print.PageFormat;
 import java.awt.print.Printable;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
-import java.util.Date; // Import java.util.Date
+import java.util.Date;
 import java.text.SimpleDateFormat;
-import java.util.List; // Import List
+import java.util.List;
+import java.util.ArrayList;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -25,9 +25,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
 
-// Import the BorrowedItemInfo class from BorrowItemDialog
 import modules.BorrowItemDialog.BorrowedItemInfo;
 
 
@@ -38,24 +36,20 @@ public class ReceiptDialog extends JDialog {
     private JButton printButton;
     private JButton closeButton;
 
-    // Use a list to store details of borrowed items
-    private List<BorrowedItemInfo> borrowedItemsInfo;
+    private List<BorrowedItemInfo> borrowedItemsInfoList;
 
     private String borrowerName;
     private String purpose;
-    private Date expectedReturnDate;
 
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     private final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 
-    // Updated constructor to accept a list of BorrowedItemInfo
-    public ReceiptDialog(java.awt.Frame parent, boolean modal, List<BorrowedItemInfo> borrowedItemsInfo, String borrowerName, String purpose, Date expectedReturnDate) {
+    public ReceiptDialog(java.awt.Frame parent, boolean modal, List<BorrowedItemInfo> borrowedItemsInfoList, String borrowerName, String purpose) {
         super(parent, modal);
-        this.borrowedItemsInfo = borrowedItemsInfo; // Store the list
+        this.borrowedItemsInfoList = borrowedItemsInfoList;
         this.borrowerName = borrowerName;
         this.purpose = purpose;
-        this.expectedReturnDate = expectedReturnDate;
 
         initComponents();
         setupDialog();
@@ -67,7 +61,7 @@ public class ReceiptDialog extends JDialog {
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setBackground(new Color(30, 30, 30));
-        setResizable(true); // Allow resizing
+        setResizable(true);
 
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         topPanel.setOpaque(false);
@@ -79,10 +73,10 @@ public class ReceiptDialog extends JDialog {
 
         receiptArea = new JTextArea();
         receiptArea.setEditable(false);
-        receiptArea.setFont(new Font("Courier New", Font.PLAIN, 12)); // Use a monospaced font for receipt
+        receiptArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         receiptArea.setBackground(new Color(50, 50, 50));
         receiptArea.setForeground(Color.WHITE);
-        receiptArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Add padding
+        receiptArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         JScrollPane scrollPane = new JScrollPane(receiptArea);
         scrollPane.getViewport().setBackground(new Color(50, 50, 50));
@@ -92,9 +86,9 @@ public class ReceiptDialog extends JDialog {
         JPanel buttonPanel = createButtonPanel();
         add(buttonPanel, BorderLayout.SOUTH);
 
-        setPreferredSize(new Dimension(400, 500)); // Initial size
+        setPreferredSize(new Dimension(450, 600));
         pack();
-        setLocationRelativeTo(getParent()); // Center the dialog
+        setLocationRelativeTo(getParent());
     }
 
     private JPanel createButtonPanel() {
@@ -102,13 +96,13 @@ public class ReceiptDialog extends JDialog {
         panel.setOpaque(false);
 
         printButton = new JButton("Print Receipt");
-        styleActionButton(printButton, new Color(52, 152, 219)); // Blue for Print
+        styleActionButton(printButton, new Color(52, 152, 219));
         printButton.addActionListener((ActionEvent e) -> printReceipt());
         panel.add(printButton);
 
         closeButton = new JButton("Close");
-        styleActionButton(closeButton, new Color(149, 165, 166)); // Gray for Close
-        closeButton.addActionListener((ActionEvent e) -> dispose()); // Close the dialog
+        styleActionButton(closeButton, new Color(149, 165, 166));
+        closeButton.addActionListener((ActionEvent e) -> dispose());
         panel.add(closeButton);
 
         return panel;
@@ -128,33 +122,58 @@ public class ReceiptDialog extends JDialog {
 
     private void generateReceiptContent() {
         StringBuilder receipt = new StringBuilder();
-        receipt.append("========================================\n");
+        receipt.append("==========================================\n");
         receipt.append("       AssetWise Academia Warehouse\n");
         receipt.append("            Item Borrow Receipt\n");
-        receipt.append("========================================\n");
+        receipt.append("==========================================\n");
         receipt.append("Transaction Date: ").append(dateTimeFormat.format(new Date())).append("\n");
-        receipt.append("----------------------------------------\n");
+        receipt.append("------------------------------------------\n");
+        receipt.append(String.format("%-18s: %s\n", "Borrowed By", borrowerName));
+        receipt.append(String.format("%-18s: %s\n", "Purpose", purpose));
+        receipt.append("------------------------------------------\n\n");
 
-        // List each borrowed item
-        receipt.append("Items Borrowed:\n");
-        receipt.append(String.format("%-10s %-20s %-10s\n", "Item ID", "Item Name", "Quantity"));
-        receipt.append("----------------------------------------\n");
-        for (BorrowedItemInfo item : borrowedItemsInfo) {
-             receipt.append(String.format("%-10d %-20s %-10d\n",
-                                          item.getItemId(),
-                                          item.getItemName(),
-                                          item.getQuantityBorrowed()));
+        List<BorrowedItemInfo> returnableItems = new ArrayList<>();
+        List<BorrowedItemInfo> consumableItems = new ArrayList<>();
+
+        for (BorrowedItemInfo item : borrowedItemsInfoList) {
+            if (item.isReturnable()) {
+                returnableItems.add(item);
+            } else {
+                consumableItems.add(item);
+            }
         }
-        receipt.append("----------------------------------------\n");
 
+        if (!returnableItems.isEmpty()) {
+            receipt.append("ITEMS TO RETURN (Machinery/Furniture):\n");
+            receipt.append(String.format("%-8s %-20s %-5s %-10s\n", "ID", "Item Name", "Qty", "Return By"));
+            receipt.append("------------------------------------------\n");
+            for (BorrowedItemInfo item : returnableItems) {
+                 receipt.append(String.format("%-8d %-20.20s %-5d %-10s\n",
+                                              item.getItemId(),
+                                              item.getItemName(),
+                                              item.getQuantityBorrowed(),
+                                              item.getExpectedReturnDate() != null ? dateFormat.format(item.getExpectedReturnDate()) : "N/A"));
+            }
+            receipt.append("------------------------------------------\n\n");
+        }
 
-        receipt.append(String.format("%-15s: %s\n", "Borrowed By", borrowerName));
-        receipt.append(String.format("%-15s: %s\n", "Purpose", purpose));
-        receipt.append(String.format("%-15s: %s\n", "Expected Return", expectedReturnDate != null ? dateFormat.format(expectedReturnDate) : "N/A"));
-        receipt.append("========================================\n");
-        receipt.append("Please return the item(s) by the\n");
-        receipt.append("expected return date. Thank you!\n");
-        receipt.append("========================================\n");
+        if (!consumableItems.isEmpty()) {
+            receipt.append("CONSUMABLE ITEMS:\n");
+            receipt.append(String.format("%-8s %-25s %-8s\n", "ID", "Item Name", "Quantity"));
+            receipt.append("------------------------------------------\n");
+            for (BorrowedItemInfo item : consumableItems) {
+                 receipt.append(String.format("%-8d %-25.25s %-8d\n",
+                                              item.getItemId(),
+                                              item.getItemName(),
+                                              item.getQuantityBorrowed()));
+            }
+            receipt.append("------------------------------------------\n\n");
+        }
+
+        receipt.append("==========================================\n");
+        receipt.append("Please return items by their expected date.\n");
+        receipt.append("Thank you!\n");
+        receipt.append("==========================================\n");
 
 
         receiptArea.setText(receipt.toString());
@@ -172,7 +191,6 @@ public class ReceiptDialog extends JDialog {
                 Graphics2D g2d = (Graphics2D) graphics;
                 g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
 
-                // Print the content of the JTextArea
                 receiptArea.printAll(g2d);
 
                 return Printable.PAGE_EXISTS;
@@ -185,10 +203,10 @@ public class ReceiptDialog extends JDialog {
                 printerJob.print();
             } catch (PrinterException e) {
                 JOptionPane.showMessageDialog(this, "Error during printing: " + e.getMessage(), "Printing Error", JOptionPane.ERROR_MESSAGE);
-                e.printStackTrace();
             }
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

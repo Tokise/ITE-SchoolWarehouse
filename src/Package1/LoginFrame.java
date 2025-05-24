@@ -141,9 +141,9 @@ public class LoginFrame extends javax.swing.JFrame {
 
     private void jCheckBox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBox1ActionPerformed
          if (jCheckBox1.isSelected()) {
-        jPasswordField1.setEchoChar((char) 0); // show
+        jPasswordField1.setEchoChar((char) 0); 
     } else {
-        jPasswordField1.setEchoChar('\u2022'); // • symbol (default hidden)
+        jPasswordField1.setEchoChar('\u2022'); 
     }
     }//GEN-LAST:event_jCheckBox1ActionPerformed
 
@@ -173,7 +173,7 @@ public class LoginFrame extends javax.swing.JFrame {
                     int userIdFromDB = rs.getInt("UserID");
                     String fullNameFromDB = rs.getString("FullName");
                     String roleFromDB = rs.getString("Role");
-                    String hashedPasswordFromDB = rs.getString("Password"); // Get the hashed password
+                    String hashedPasswordFromDB = rs.getString("Password"); 
 
 
                     if (PasswordHasher.verifyPassword(password, hashedPasswordFromDB)) {
@@ -184,12 +184,11 @@ public class LoginFrame extends javax.swing.JFrame {
                         loggedInUser.setRole(roleFromDB);
                         loggedInUser.setUsername(username);
 
-                        System.out.println("Login Successful - User ID: " + loggedInUser.getUserId()); // Debug
+                        System.out.println("Login Successful - User ID: " + loggedInUser.getUserId()); 
 
 
                         DashBoardFrame1 dashboardFrame = new DashBoardFrame1(loggedInUser);
-                        dashboardFrame.setVisible(true); // Make dashboard visible
-                        // Removed the call to dashboardFrame.showDashboard();
+                        dashboardFrame.setVisible(true); 
                         this.dispose();
 
                     } else {

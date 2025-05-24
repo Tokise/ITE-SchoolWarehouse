@@ -20,8 +20,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.math.BigDecimal;
 import java.util.Date;
-import java.awt.GridLayout; // Import GridLayout
-import javax.swing.table.DefaultTableCellRenderer; // Import for centering table data
+import java.awt.GridLayout;
+import javax.swing.table.DefaultTableCellRenderer;
 
 
 public class PurchaseOrderDetailsDialog extends JDialog {
@@ -32,18 +32,15 @@ public class PurchaseOrderDetailsDialog extends JDialog {
 
     private JLabel lblPoNumber;
     private JLabel lblPoDate;
-    private JLabel lblStatus; // Stores the current status of the PO
-    // private JLabel lblSupplier; // Removed Supplier label
+    private JLabel lblStatus;
     private JLabel lblTotalAmount;
     private JTable itemsTable;
     private DefaultTableModel itemsTableModel;
     private JButton btnApprove;
     private JButton btnCancel;
     private JButton btnReceive;
-    // private JButton btnSubmitForApproval; // Removed button for Draft POs
 
 
-    // Listener to notify the parent panel about changes
     private PurchaseOrderActionListener actionListener;
 
     public interface PurchaseOrderActionListener {
@@ -55,9 +52,6 @@ public class PurchaseOrderDetailsDialog extends JDialog {
     }
 
 
-    /**
-     * Creates new form PurchaseOrderDetailsDialog
-     */
     public PurchaseOrderDetailsDialog(Frame parent, boolean modal, Connection conn, User currentUser, int poId) {
         super(parent, modal);
         this.conn = conn;
@@ -65,37 +59,30 @@ public class PurchaseOrderDetailsDialog extends JDialog {
         this.poId = poId;
         setTitle("Purchase Order Details");
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        // initComponents(); // NetBeans generated - should remain untouched
-        setupDialogComponents(); // Custom initialization method
+        setupDialogComponents();
 
         loadPurchaseOrderDetails();
     }
 
-    // Custom initialization method to set up UI components
     private void setupDialogComponents() {
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         mainPanel.setBackground(new Color(30, 30, 30));
 
-        // PO Header Details
-        // Adjusted GridLayout to 4 rows as Supplier is removed from display
         JPanel headerPanel = new JPanel(new GridLayout(4, 1, 0, 5));
         headerPanel.setOpaque(false);
         lblPoNumber = createStyledLabel("PO Number: ");
         lblPoDate = createStyledLabel("PO Date: ");
-        lblStatus = createStyledLabel("Status: "); // This label will display the status
-        // lblSupplier = createStyledLabel("Supplier: "); // Removed Supplier label
+        lblStatus = createStyledLabel("Status: ");
         lblTotalAmount = createStyledLabel("Total Amount: ");
 
         headerPanel.add(lblPoNumber);
         headerPanel.add(lblPoDate);
         headerPanel.add(lblStatus);
-        // headerPanel.add(lblSupplier); // Removed Supplier label
         headerPanel.add(lblTotalAmount);
 
         mainPanel.add(headerPanel, BorderLayout.NORTH);
 
-        // Items Table
         String[] itemColumns = {"Item ID", "Description", "Quantity Ordered", "Unit Price", "Subtotal"};
         itemsTableModel = new DefaultTableModel(itemColumns, 0) {
             @Override
@@ -105,7 +92,7 @@ public class PurchaseOrderDetailsDialog extends JDialog {
 
             @Override
             public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex == 3 || columnIndex == 4) { // Unit Price and Subtotal
+                if (columnIndex == 3 || columnIndex == 4) {
                     return BigDecimal.class;
                 }
                 return super.getColumnClass(columnIndex);
@@ -114,7 +101,6 @@ public class PurchaseOrderDetailsDialog extends JDialog {
         itemsTable = new JTable(itemsTableModel);
         styleTable(itemsTable);
 
-        // Center text in all cells of the items table
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         for (int i = 0; i < itemsTable.getColumnCount(); i++) {
@@ -126,23 +112,18 @@ public class PurchaseOrderDetailsDialog extends JDialog {
         scrollPane.getViewport().setBackground(new Color(40, 40, 40));
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Action Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setOpaque(false);
 
-        // btnSubmitForApproval = createStyledButton("Submit for Approval", new Color(243, 156, 18)); // Removed button
-        btnApprove = createStyledButton("Approve", new Color(52, 152, 219)); // Blue color
-        btnCancel = createStyledButton("Cancel PO", new Color(231, 76, 60)); // Red color
-        btnReceive = createStyledButton("Receive Items", new Color(46, 204, 113)); // Green color
+        btnApprove = createStyledButton("Approve", new Color(52, 152, 219));
+        btnCancel = createStyledButton("Cancel PO", new Color(231, 76, 60));
+        btnReceive = createStyledButton("Receive Items", new Color(46, 204, 113));
 
-        // btnSubmitForApproval.addActionListener(e -> updatePurchaseOrderStatus("Pending Approval", "Draft")); // Removed listener
-        // Modified Approve action to handle "Draft" status as well
-        btnApprove.addActionListener(e -> updatePurchaseOrderStatus("Approved", null)); // Allow approving from any status (will add checks in method)
-        btnCancel.addActionListener(e -> updatePurchaseOrderStatus("Cancelled", null)); // No specific previous status needed for cancel, but can be added
+        btnApprove.addActionListener(e -> updatePurchaseOrderStatus("Approved", null));
+        btnCancel.addActionListener(e -> updatePurchaseOrderStatus("Cancelled", null));
         btnReceive.addActionListener(e -> handleReceiveItems());
 
 
-        // buttonPanel.add(btnSubmitForApproval); // Removed button from panel
         buttonPanel.add(btnApprove);
         buttonPanel.add(btnCancel);
         buttonPanel.add(btnReceive);
@@ -197,9 +178,7 @@ public class PurchaseOrderDetailsDialog extends JDialog {
             return;
         }
 
-        // Removed SupplierName from the select query for PurchaseOrders
         String poSql = "SELECT PONumber, PODate, Status, TotalAmount FROM PurchaseOrders WHERE POID = ?";
-         // Ensure UnitPrice is fetched for item subtotal calculation if not already stored
         String itemsSql = "SELECT poi.ItemID, poi.Description, poi.QuantityOrdered, i.UnitPrice, (poi.QuantityOrdered * i.UnitPrice) AS Subtotal " +
                           "FROM PurchaseOrderItems poi JOIN Items i ON poi.ItemID = i.ItemID WHERE poi.POID = ?";
 
@@ -208,26 +187,21 @@ public class PurchaseOrderDetailsDialog extends JDialog {
             pstmtPo.setInt(1, poId);
             try (ResultSet rsPo = pstmtPo.executeQuery()) {
                 if (rsPo.next()) {
-                    String currentStatus = rsPo.getString("Status"); // Get current status
+                    String currentStatus = rsPo.getString("Status");
 
                     lblPoNumber.setText("PO Number: " + rsPo.getString("PONumber"));
                     lblPoDate.setText("PO Date: " + rsPo.getDate("PODate"));
-                    lblStatus.setText("Status: " + currentStatus); // Update status label
-                    // lblSupplier.setText("Supplier: " + (rsPo.getString("SupplierName") != null ? rsPo.getString("SupplierName") : "N/A")); // Removed Supplier label
+                    lblStatus.setText("Status: " + currentStatus);
                     BigDecimal totalAmount = rsPo.getBigDecimal("TotalAmount");
                     lblTotalAmount.setText("Total Amount: " + (totalAmount != null ? totalAmount.toPlainString() : "0.00"));
 
-                    // Set button visibility based on user role and status
                     boolean isAdmin = currentUser != null && "Admin".equals(currentUser.getRole());
                     boolean isCustodian = currentUser != null && "Custodian".equals(currentUser.getRole());
 
-                    // Approve button visible only for Admin and if status is Draft or Pending Approval
                     btnApprove.setVisible(isAdmin && ("Draft".equals(currentStatus) || "Pending Approval".equals(currentStatus)));
 
-                    // Cancel button visible if not already Cancelled or Received
                     btnCancel.setVisible(!("Cancelled".equals(currentStatus) || "Received".equals(currentStatus)));
 
-                    // Receive button visible for Admin/Custodian and if status is Approved, Ordered, or Partially Received
                     btnReceive.setVisible((isAdmin || isCustodian) && ("Approved".equals(currentStatus) || "Ordered".equals(currentStatus) || "Partially Received".equals(currentStatus)));
 
 
@@ -244,7 +218,7 @@ public class PurchaseOrderDetailsDialog extends JDialog {
              return;
         }
 
-        itemsTableModel.setRowCount(0); // Clear existing items
+        itemsTableModel.setRowCount(0);
         try (PreparedStatement pstmtItems = conn.prepareStatement(itemsSql)) {
             pstmtItems.setInt(1, poId);
             try (ResultSet rsItems = pstmtItems.executeQuery()) {
@@ -268,36 +242,27 @@ public class PurchaseOrderDetailsDialog extends JDialog {
             } else {
                 JOptionPane.showMessageDialog(this, "Error loading purchase order items: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
             }
-            // Do not dispose here, allow user to see header details even if items fail to load
         }
     }
 
-    /**
-     * Updates the purchase order status.
-     * @param newStatus The new status to set.
-     * @param expectedCurrentStatus The status the PO must currently have for this action to be valid (can be null if not checked).
-     */
     private void updatePurchaseOrderStatus(String newStatus, String expectedCurrentStatus) {
         if (conn == null) {
             JOptionPane.showMessageDialog(this, "Database connection not available.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        // Role check for Approval action
         if ("Approved".equals(newStatus) && (currentUser == null || !"Admin".equals(currentUser.getRole()))) {
              JOptionPane.showMessageDialog(this, "You do not have permission to approve purchase orders.", "Permission Denied", JOptionPane.WARNING_MESSAGE);
-             loadPurchaseOrderDetails(); // Refresh dialog state
+             loadPurchaseOrderDetails();
              return;
         }
-         // Role check for Cancel action (assuming Admin or Custodian can cancel, adjust if needed)
          if ("Cancelled".equals(newStatus) && (currentUser == null || (!"Admin".equals(currentUser.getRole()) && !"Custodian".equals(currentUser.getRole())))) {
              JOptionPane.showMessageDialog(this, "You do not have permission to cancel purchase orders.", "Permission Denied", JOptionPane.WARNING_MESSAGE);
-             loadPurchaseOrderDetails(); // Refresh dialog state
+             loadPurchaseOrderDetails();
              return;
          }
 
 
-        // Fetch the current status from the database to ensure atomicity and prevent race conditions
         String actualCurrentStatus = "";
         String fetchStatusSql = "SELECT Status FROM PurchaseOrders WHERE POID = ?";
         try (PreparedStatement pstmtFetch = conn.prepareStatement(fetchStatusSql)) {
@@ -316,18 +281,14 @@ public class PurchaseOrderDetailsDialog extends JDialog {
             return;
         }
 
-        // Check if the action is valid based on the actual current status
-        // If expectedCurrentStatus is null, any current status is allowed for the update
         if (expectedCurrentStatus != null && !actualCurrentStatus.equals(expectedCurrentStatus)) {
             JOptionPane.showMessageDialog(this,
                 "Action cannot be performed. The PO status is '" + actualCurrentStatus + "', but expected '" + expectedCurrentStatus + "'. Please refresh.",
                 "Status Mismatch", JOptionPane.WARNING_MESSAGE);
-            loadPurchaseOrderDetails(); // Refresh to show the latest state
+            loadPurchaseOrderDetails();
             return;
         }
 
-        // Specific checks for transitions:
-        // Allow "Approved" from "Draft" or "Pending Approval"
         if ("Approved".equals(newStatus) && !("Draft".equals(actualCurrentStatus) || "Pending Approval".equals(actualCurrentStatus))) {
              JOptionPane.showMessageDialog(this,
                 "Cannot approve a PO with status '" + actualCurrentStatus + "'. It must be 'Draft' or 'Pending Approval'.",
@@ -336,7 +297,6 @@ public class PurchaseOrderDetailsDialog extends JDialog {
             return;
         }
 
-        // For "Cancel" operation, ensure it's not already "Received" or "Cancelled"
         if ("Cancelled".equals(newStatus) && ("Received".equals(actualCurrentStatus) || "Cancelled".equals(actualCurrentStatus))) {
              JOptionPane.showMessageDialog(this,
                 "Cannot cancel a PO that is already '" + actualCurrentStatus + "'.",
@@ -345,7 +305,6 @@ public class PurchaseOrderDetailsDialog extends JDialog {
             return;
         }
 
-        // Prevent receiving if not in an allowed status (This check is also in handleReceiveItems, but good to have here)
         if ("Received".equals(newStatus) && !("Approved".equals(actualCurrentStatus) || "Ordered".equals(actualCurrentStatus) || "Partially Received".equals(actualCurrentStatus))) {
              JOptionPane.showMessageDialog(this,
                 "Cannot mark PO as Received with status '" + actualCurrentStatus + "'. It must be 'Approved', 'Ordered', or 'Partially Received'.",
@@ -363,17 +322,16 @@ public class PurchaseOrderDetailsDialog extends JDialog {
 
             if (affectedRows > 0) {
                 JOptionPane.showMessageDialog(this, "Purchase Order status updated to " + newStatus, "Success", JOptionPane.INFORMATION_MESSAGE);
-                loadPurchaseOrderDetails(); // Refresh dialog with new status and button visibility
+                loadPurchaseOrderDetails();
 
                 if (actionListener != null) {
-                    actionListener.purchaseOrderChanged(); // Notify parent panel to refresh its views
+                    actionListener.purchaseOrderChanged();
                 }
-                // Close the dialog after successful status update
-                dispose(); // Add dispose() here
+                dispose();
 
             } else {
                 JOptionPane.showMessageDialog(this, "Failed to update purchase order status. PO might have been modified or deleted.", "Update Error", JOptionPane.ERROR_MESSAGE);
-                loadPurchaseOrderDetails(); // Refresh to see the current state
+                loadPurchaseOrderDetails();
             }
         } catch (SQLException e) {
              System.err.println("Error updating purchase order status: " + e.getMessage());
@@ -387,14 +345,12 @@ public class PurchaseOrderDetailsDialog extends JDialog {
             return;
         }
 
-         // Role check for Receive action
          if (currentUser == null || (!"Admin".equals(currentUser.getRole()) && !"Custodian".equals(currentUser.getRole()))) {
              JOptionPane.showMessageDialog(this, "You do not have permission to receive purchase orders.", "Permission Denied", JOptionPane.WARNING_MESSAGE);
-             loadPurchaseOrderDetails(); // Refresh dialog state
+             loadPurchaseOrderDetails();
              return;
          }
 
-        // Fetch current status directly from DB before proceeding
         String currentStatusFromDB = "";
         String fetchStatusSql = "SELECT Status FROM PurchaseOrders WHERE POID = ?";
         try (PreparedStatement pstmtFetch = conn.prepareStatement(fetchStatusSql)) {
@@ -414,19 +370,17 @@ public class PurchaseOrderDetailsDialog extends JDialog {
         }
 
 
-         // Strict status check for receiving
          if ("Approved".equals(currentStatusFromDB) || "Ordered".equals(currentStatusFromDB) || "Partially Received".equals(currentStatusFromDB)) {
              int confirm = JOptionPane.showConfirmDialog(this, "Mark this PO as fully received and update inventory?", "Confirm Receive", JOptionPane.YES_NO_OPTION);
              if (confirm == JOptionPane.YES_OPTION) {
                  try {
-                     conn.setAutoCommit(false); // Start Transaction
+                     conn.setAutoCommit(false);
 
-                     // 1. Update Inventory Quantities
                      String updateInventorySql = "UPDATE Items SET Quantity = Quantity + ? WHERE ItemID = ?";
                      try (PreparedStatement pstmtUpdateInventory = conn.prepareStatement(updateInventorySql)) {
                          for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
-                             int itemId = (Integer) itemsTableModel.getValueAt(i, 0); // ItemID is at index 0
-                             int quantityOrdered = (Integer) itemsTableModel.getValueAt(i, 2); // QuantityOrdered is at index 2
+                             int itemId = (Integer) itemsTableModel.getValueAt(i, 0);
+                             int quantityOrdered = (Integer) itemsTableModel.getValueAt(i, 2);
 
                              pstmtUpdateInventory.setInt(1, quantityOrdered);
                              pstmtUpdateInventory.setInt(2, itemId);
@@ -436,7 +390,6 @@ public class PurchaseOrderDetailsDialog extends JDialog {
                          System.out.println("Inventory updated for PO ID: " + poId);
                      }
 
-                     // 2. Update Purchase Order Status to Received
                      String updatePoStatusSql = "UPDATE PurchaseOrders SET Status = ? WHERE POID = ?";
                      try (PreparedStatement pstmtUpdatePo = conn.prepareStatement(updatePoStatusSql)) {
                          pstmtUpdatePo.setString(1, "Received");
@@ -449,15 +402,14 @@ public class PurchaseOrderDetailsDialog extends JDialog {
                          System.out.println("Purchase Order status updated to Received for PO ID: " + poId);
                      }
 
-                     conn.commit(); // If all updates successful, commit the transaction
+                     conn.commit();
                      JOptionPane.showMessageDialog(this, "Purchase Order marked as Received and inventory updated.", "Success", JOptionPane.INFORMATION_MESSAGE);
 
                      loadPurchaseOrderDetails();
                      if (actionListener != null) {
                          actionListener.purchaseOrderChanged();
                      }
-                     // Close the dialog after successful receiving
-                     dispose(); // Add dispose() here
+                     dispose();
 
                  } catch (SQLException e) {
                      try {
@@ -470,7 +422,7 @@ public class PurchaseOrderDetailsDialog extends JDialog {
                      }
                      System.err.println("Database error during receiving items: " + e.getMessage());
                      JOptionPane.showMessageDialog(this, "Error receiving items and updating inventory: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
-                     loadPurchaseOrderDetails(); // Refresh to show current state after error
+                     loadPurchaseOrderDetails();
 
                  } finally {
                      try {
@@ -484,11 +436,10 @@ public class PurchaseOrderDetailsDialog extends JDialog {
              }
          } else {
              JOptionPane.showMessageDialog(this, "This Purchase Order is not in a status that allows receiving items (Current: " + currentStatusFromDB + "). It must be 'Approved', 'Ordered', or 'Partially Received'. Please refresh.", "Invalid Status", JOptionPane.WARNING_MESSAGE);
-             loadPurchaseOrderDetails(); // Refresh to show the actual current status
+             loadPurchaseOrderDetails();
          }
     }
 
- 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
